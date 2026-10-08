@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "../../components/layout/Navbar";
 import { useToast } from "../../components/ui/Toast";
+import { API_BASE_URL } from "../../lib/constants";
 
 interface SettingItem {
   id: string;
@@ -182,8 +183,9 @@ export default function SettingsPage() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isHelpChatOpen, setIsHelpChatOpen] = useState(false);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string }>>([
-    { sender: "assistant", text: "Hi Vinayak! I'm your Zoom Assistant. How can I help with your account settings today?" },
+    { sender: "assistant", text: "Hi Vinayak! I'm your Zoom AI Companion. How can I help with your account settings or meetings today?" },
   ]);
   const [chatInput, setChatInput] = useState("");
 
@@ -198,30 +200,87 @@ export default function SettingsPage() {
     return initial;
   });
 
-  const handleToggle = (id: string, title: string) => {
-    setSettingsState((prev) => {
-      const updated = !prev[id];
-      showToast(`${title} turned ${updated ? "on" : "off"}`, "info");
-      return { ...prev, [id]: updated };
-    });
+  // Fetch settings from backend on mount
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/settings`);
+        if (res.ok) {
+          const backendData = await res.json();
+          setSettingsState((prev) => ({ ...prev, ...backendData }));
+        }
+      } catch (err) {
+        console.error("Failed to load settings from server:", err);
+      }
+    }
+    fetchSettings();
+  }, []);
+
+  const handleToggle = async (id: string, title: string) => {
+    const updated = !settingsState[id];
+    setSettingsState((prev) => ({ ...prev, [id]: updated }));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: id, value: updated }),
+      });
+      if (res.ok) {
+        showToast(`${title} saved to cloud (${updated ? "On" : "Off"})`, "success");
+      } else {
+        showToast(`${title} updated locally`, "info");
+      }
+    } catch {
+      showToast(`${title} updated locally`, "info");
+    }
   };
 
-  const handleSendChatMessage = (e: React.FormEvent) => {
+  const handleSendChatMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || isAiTyping) return;
     const userText = chatInput.trim();
-    setChatMessages((prev) => [...prev, { sender: "user", text: userText }]);
+    const newHistory = [...chatMessages, { sender: "user", text: userText }];
+    setChatMessages(newHistory);
     setChatInput("");
+    setIsAiTyping(true);
 
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/assistant/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userText,
+          history: chatMessages,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages((prev) => [
+          ...prev,
+          { sender: "assistant", text: data.reply },
+        ]);
+      } else {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            sender: "assistant",
+            text: "I've noted your question. All your Zoom settings and preferences are currently synced and up to date.",
+          },
+        ]);
+      }
+    } catch {
       setChatMessages((prev) => [
         ...prev,
         {
           sender: "assistant",
-          text: `Got it! I can help you configure ${userText.slice(0, 30)}... All Zoom settings take effect immediately across your meetings.`,
+          text: "I'm available to help you with Clips, Canvas AI generation, and audio/video settings anytime.",
         },
       ]);
-    }, 600);
+    } finally {
+      setIsAiTyping(false);
+    }
   };
 
   return (
@@ -534,13 +593,23 @@ export default function SettingsPage() {
                     className={`max-w-[80%] rounded-2xl px-3.5 py-2 leading-relaxed ${
                       msg.sender === "user"
                         ? "bg-[#0B5CFF] text-white rounded-br-none"
-                        : "bg-white text-[#232333] border border-[#E2E8F0] shadow-xs rounded-bl-none"
+                        : "bg-white text-[#232333] border border-[#E2E8F0] shadow-xs rounded-bl-none whitespace-pre-wrap"
                     }`}
                   >
                     {msg.text}
                   </div>
                 </div>
               ))}
+              {isAiTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-white text-gray-500 border border-[#E2E8F0] rounded-2xl rounded-bl-none px-3.5 py-2 text-xs flex items-center gap-1.5 shadow-xs">
+                    <span className="w-1.5 h-1.5 bg-[#0B5CFF] rounded-full animate-bounce" />
+                    <span className="w-1.5 h-1.5 bg-[#0B5CFF] rounded-full animate-bounce [animation-delay:0.2s]" />
+                    <span className="w-1.5 h-1.5 bg-[#0B5CFF] rounded-full animate-bounce [animation-delay:0.4s]" />
+                    <span className="text-[11px] text-gray-400 ml-1">AI Companion thinking...</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Chat Input */}

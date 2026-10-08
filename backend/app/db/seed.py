@@ -25,7 +25,7 @@ def run_seed() -> None:
         host_user = User(
             name="Vinayak",
             email="vinayak@zoomclone.com",
-            avatar_url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+            avatar_url=None,
             personal_meeting_id="3829148201",
             timezone="Asia/Kolkata",
         )

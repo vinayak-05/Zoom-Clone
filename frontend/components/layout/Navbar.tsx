@@ -21,6 +21,7 @@ import {
 import { Avatar } from "../ui/Avatar";
 import { DEFAULT_USER } from "../../lib/constants";
 import { useToast } from "../ui/Toast";
+import { logoutUser, getStoredUser, AuthUser } from "../../lib/auth";
 
 interface NavbarProps {
   onOpenJoinModal?: () => void;
@@ -30,9 +31,22 @@ interface NavbarProps {
 export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const [currentUser, setCurrentUser] = useState<AuthUser>(DEFAULT_USER as AuthUser);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHostDropdownOpen, setIsHostDropdownOpen] = useState(false);
   const [isWebAppDropdownOpen, setIsWebAppDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredUser();
+    if (stored) setCurrentUser(stored);
+  }, []);
+
+  const handleSignOut = async () => {
+    setIsProfileOpen(false);
+    await logoutUser();
+    showToast("Signed out successfully", "info");
+    router.push("/signin");
+  };
 
   const profileRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -271,7 +285,7 @@ export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) 
             >
               {/* Signature Zoom Burnt Orange circle with crisp white V */}
               <Avatar
-                name={DEFAULT_USER.name}
+                name={currentUser.name}
                 size="sm"
                 className="cursor-pointer shadow-sm hover:scale-105 transition-transform"
               />
@@ -284,17 +298,17 @@ export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) 
               >
                 {/* Account Header */}
                 <div className="px-4 py-3 border-b border-[#E4E4EB] flex items-center gap-3 bg-gray-50/50">
-                  <Avatar name={DEFAULT_USER.name} size="md" />
+                  <Avatar name={currentUser.name} size="md" />
                   <div className="overflow-hidden">
                     <p className="text-sm font-bold text-[#1C1C28] truncate">
-                      {DEFAULT_USER.name}
+                      {currentUser.name}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      {DEFAULT_USER.email}
+                      {currentUser.email}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-[#0B5CFF]">
-                        {DEFAULT_USER.plan} Plan
+                        {currentUser.plan || "Basic"} Plan
                       </span>
                     </div>
                   </div>
@@ -374,11 +388,11 @@ export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) 
                 {/* Footer Sign Out */}
                 <div className="border-t border-[#E4E4EB] pt-1">
                   <button
-                    onClick={() => showToast("Host account is currently active", "info")}
-                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 font-medium"
+                    onClick={handleSignOut}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 font-medium cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
-                    Sign Out ({DEFAULT_USER.name})
+                    Sign Out ({currentUser.name})
                   </button>
                 </div>
               </div>

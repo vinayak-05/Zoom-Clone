@@ -10,13 +10,19 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.db.seed import run_seed
-from app.api.v1 import users, meetings, participants, ws
+from app.api.v1 import users, meetings, participants, ws, settings_api, auth, assistant
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Create tables and seed data on startup."""
-    from app.models import user as _user, meeting as _meeting, participant as _participant, chat_message as _chat_message  # noqa: F401
+    from app.models import (  # noqa: F401
+        user as _user,
+        meeting as _meeting,
+        participant as _participant,
+        chat_message as _chat_message,
+        setting as _setting,
+    )
 
     Base.metadata.create_all(bind=engine)
     run_seed()
@@ -47,9 +53,12 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     # Register API v1 Routers
+    application.include_router(auth.router, prefix="/api/v1")
     application.include_router(users.router, prefix="/api/v1")
     application.include_router(meetings.router, prefix="/api/v1")
     application.include_router(participants.router, prefix="/api/v1")
+    application.include_router(settings_api.router, prefix="/api/v1")
+    application.include_router(assistant.router, prefix="/api/v1")
     application.include_router(ws.router)
 
     return application
