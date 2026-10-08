@@ -39,7 +39,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS – allow frontend origins
+    # CORS – allow frontend origins (supports localhost, local network IPs, and any deployed production URL)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:3000",
             "http://[::1]:3000",
         ],
-        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$",
+        allow_origin_regex=r"^https?://.*$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

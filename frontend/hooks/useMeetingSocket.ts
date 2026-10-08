@@ -15,6 +15,9 @@ interface UseMeetingSocketProps {
   onMeetingEnded?: () => void;
   onChatMessage?: (message: ChatMessage) => void;
   onReaction?: (reaction: string, senderId: number) => void;
+  onWebRtcOffer?: (senderId: number, offer: RTCSessionDescriptionInit) => void;
+  onWebRtcAnswer?: (senderId: number, answer: RTCSessionDescriptionInit) => void;
+  onWebRtcIceCandidate?: (senderId: number, candidate: RTCIceCandidateInit) => void;
 }
 
 export function useMeetingSocket({
@@ -28,6 +31,9 @@ export function useMeetingSocket({
   onMeetingEnded,
   onChatMessage,
   onReaction,
+  onWebRtcOffer,
+  onWebRtcAnswer,
+  onWebRtcIceCandidate,
 }: UseMeetingSocketProps) {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -78,6 +84,12 @@ export function useMeetingSocket({
             });
           } else if (type === "reaction") {
             onReaction?.(data.reaction, data.participant_id);
+          } else if (type === "webrtc_offer") {
+            onWebRtcOffer?.(data.sender_participant_id, data.offer);
+          } else if (type === "webrtc_answer") {
+            onWebRtcAnswer?.(data.sender_participant_id, data.answer);
+          } else if (type === "webrtc_ice_candidate") {
+            onWebRtcIceCandidate?.(data.sender_participant_id, data.candidate);
           }
         } catch (e) {
           console.error("Error parsing WebSocket message:", e);
@@ -156,6 +168,39 @@ export function useMeetingSocket({
     [sendMessage]
   );
 
+  const sendWebRtcOffer = useCallback(
+    (targetParticipantId: number, offer: RTCSessionDescriptionInit) => {
+      sendMessage({
+        type: "webrtc_offer",
+        target_participant_id: targetParticipantId,
+        offer,
+      });
+    },
+    [sendMessage]
+  );
+
+  const sendWebRtcAnswer = useCallback(
+    (targetParticipantId: number, answer: RTCSessionDescriptionInit) => {
+      sendMessage({
+        type: "webrtc_answer",
+        target_participant_id: targetParticipantId,
+        answer,
+      });
+    },
+    [sendMessage]
+  );
+
+  const sendWebRtcIceCandidate = useCallback(
+    (targetParticipantId: number, candidate: RTCIceCandidateInit) => {
+      sendMessage({
+        type: "webrtc_ice_candidate",
+        target_participant_id: targetParticipantId,
+        candidate,
+      });
+    },
+    [sendMessage]
+  );
+
   return {
     isConnected,
     sendMessage,
@@ -165,5 +210,8 @@ export function useMeetingSocket({
     sendRemoveParticipant,
     sendMeetingEnded,
     sendReaction,
+    sendWebRtcOffer,
+    sendWebRtcAnswer,
+    sendWebRtcIceCandidate,
   };
 }

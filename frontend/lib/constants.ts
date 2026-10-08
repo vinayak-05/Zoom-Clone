@@ -2,11 +2,31 @@
  * Global application constants and configuration.
  */
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const getApiBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return `${window.location.protocol}//${host}:8000`;
+    }
+  }
+  return "http://127.0.0.1:8000";
+};
 
-export const WS_BASE_URL =
-  process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8000";
+export const getWsBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return `${protocol}//${host}:8000`;
+    }
+  }
+  return "ws://127.0.0.1:8000";
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+export const WS_BASE_URL = getWsBaseUrl();
 
 export const DEFAULT_USER = {
   id: 1,

@@ -42,6 +42,7 @@ import { UpgradeModal } from "../../../components/modals/UpgradeModal";
 import { InviteModal } from "../../../components/modals/InviteModal";
 import { useLocalMedia } from "../../../hooks/useLocalMedia";
 import { useMeetingSocket } from "../../../hooks/useMeetingSocket";
+import { useWebRTC } from "../../../hooks/useWebRTC";
 import { api } from "../../../lib/api";
 import { formatMeetingCode, formatTime, getInitials, getAvatarHexColor } from "../../../lib/utils";
 import { DEFAULT_USER, API_BASE_URL } from "../../../lib/constants";
@@ -330,6 +331,15 @@ export default function MeetingRoomPage() {
     setTimeout(() => setActiveReaction(null), 3000);
   }, []);
 
+  // WebRTC Signaling Handlers Ref
+  const webrtcHandlersRef = useRef<{
+    initiateCall: (id: number) => void;
+    handleOffer: (id: number, offer: RTCSessionDescriptionInit) => void;
+    handleAnswer: (id: number, answer: RTCSessionDescriptionInit) => void;
+    handleIceCandidate: (id: number, candidate: RTCIceCandidateInit) => void;
+    removePeer: (id: number) => void;
+  } | null>(null);
+
   const {
     sendChatMessage: socketSendChat,
     sendMuteAll: socketSendMuteAll,
@@ -337,14 +347,19 @@ export default function MeetingRoomPage() {
     sendRemoveParticipant: socketSendRemove,
     sendMeetingEnded: socketSendEnd,
     sendReaction: socketSendReaction,
+    sendWebRtcOffer: socketSendWebRtcOffer,
+    sendWebRtcAnswer: socketSendWebRtcAnswer,
+    sendWebRtcIceCandidate: socketSendWebRtcIceCandidate,
   } = useMeetingSocket({
     meetingCode: codeParam,
     participantId: currentParticipantId,
-    onParticipantJoined: () => {
+    onParticipantJoined: (pid) => {
       refreshParticipants();
+      webrtcHandlersRef.current?.initiateCall(pid);
       showToast("A new participant joined.", "info");
     },
     onParticipantLeft: (pid) => {
+      webrtcHandlersRef.current?.removePeer(pid);
       setParticipants((prev) => prev.filter((p) => p.id !== pid));
     },
     onMutedByHost: handleMutedByHost,
@@ -353,7 +368,35 @@ export default function MeetingRoomPage() {
     onMeetingEnded: handleMeetingEnded,
     onChatMessage: handleRemoteChatMessage,
     onReaction: handleRemoteReaction,
+    onWebRtcOffer: (senderId, offer) => webrtcHandlersRef.current?.handleOffer(senderId, offer),
+    onWebRtcAnswer: (senderId, answer) => webrtcHandlersRef.current?.handleAnswer(senderId, answer),
+    onWebRtcIceCandidate: (senderId, candidate) => webrtcHandlersRef.current?.handleIceCandidate(senderId, candidate),
   });
+
+  const {
+    remoteStreams,
+    initiateCall,
+    handleOffer,
+    handleAnswer,
+    handleIceCandidate,
+    removePeer,
+  } = useWebRTC({
+    currentParticipantId,
+    localStream: isScreenSharing ? screenStream : localStream,
+    sendWebRtcOffer: (targetId, offer) => socketSendWebRtcOffer(targetId, offer),
+    sendWebRtcAnswer: (targetId, answer) => socketSendWebRtcAnswer(targetId, answer),
+    sendWebRtcIceCandidate: (targetId, candidate) => socketSendWebRtcIceCandidate(targetId, candidate),
+  });
+
+  useEffect(() => {
+    webrtcHandlersRef.current = {
+      initiateCall,
+      handleOffer,
+      handleAnswer,
+      handleIceCandidate,
+      removePeer,
+    };
+  }, [initiateCall, handleOffer, handleAnswer, handleIceCandidate, removePeer]);
 
   // 6. Join Room Handler (called from PreJoinScreen)
   const handleJoinFromPreJoin = async (settings: {
@@ -602,6 +645,7 @@ export default function MeetingRoomPage() {
     .map((p) => ({
       id: p.id,
       displayName: p.display_name,
+      stream: remoteStreams[Number(p.id)] || null,
       isVideoOff: p.is_video_off,
       isMuted: p.is_muted,
       isHandRaised: p.is_hand_raised,
