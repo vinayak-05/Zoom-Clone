@@ -46,11 +46,11 @@ export function Sidebar() {
     { label: "Hub", href: "/hub", icon: Layers, badge: "New", isExternal: true },
     { label: "Whiteboards", href: "/whiteboards", icon: Edit3, isExternal: true },
     { label: "Notes", href: "/notes", icon: FileText },
-    { label: "Clips", href: "/clips", icon: Film, isExternal: true },
-    { label: "Canvas", href: "/canvas", icon: Palette },
-    { label: "Paper", href: "/paper", icon: FileCode },
-    { label: "Sheets", href: "/sheets", icon: FileSpreadsheet },
-    { label: "Slides", href: "/slides", icon: Presentation },
+    { label: "Clips", href: "/settings?tab=clips", icon: Film, isFunctional: true },
+    { label: "Canvas", href: "/settings?tab=canvas", icon: Palette, isFunctional: true },
+    { label: "Paper", href: "/settings?tab=paper", icon: FileCode, isFunctional: true },
+    { label: "Sheets", href: "/settings?tab=sheets", icon: FileSpreadsheet, isFunctional: true },
+    { label: "Slides", href: "/settings?tab=slides", icon: Presentation, isFunctional: true },
     { label: "Tasks", href: "/tasks", icon: CheckSquare },
   ];
 

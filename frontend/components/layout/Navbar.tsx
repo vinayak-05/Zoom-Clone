@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   HelpCircle,
@@ -11,8 +12,11 @@ import {
   User,
   LogOut,
   Video,
-  Plus,
-  Calendar,
+  Monitor,
+  Sparkles,
+  ShieldCheck,
+  Smartphone,
+  ExternalLink,
 } from "lucide-react";
 import { Avatar } from "../ui/Avatar";
 import { DEFAULT_USER } from "../../lib/constants";
@@ -24,201 +28,364 @@ interface NavbarProps {
 }
 
 export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) {
+  const router = useRouter();
   const { showToast } = useToast();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHostDropdownOpen, setIsHostDropdownOpen] = useState(false);
+  const [isWebAppDropdownOpen, setIsWebAppDropdownOpen] = useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const webAppRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+      if (hostRef.current && !hostRef.current.contains(event.target as Node)) {
+        setIsHostDropdownOpen(false);
+      }
+      if (webAppRef.current && !webAppRef.current.contains(event.target as Node)) {
+        setIsWebAppDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <header className="h-14 bg-white border-b border-zoom-border px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 select-none">
-      {/* Left: Brand Logo + Primary Nav */}
-      <div className="flex items-center gap-6">
-        <Link href="/" className="flex items-center gap-1.5 focus:outline-none">
-          <span className="text-2xl font-black tracking-tight text-zoom-blue">
-            zoom
-          </span>
-        </Link>
-
-        {/* Desktop Category Links */}
-        <nav className="hidden lg:flex items-center gap-5 text-sm font-medium text-zoom-text">
-          <button
-            onClick={() => showToast("Products catalog coming soon", "info")}
-            className="hover:text-zoom-blue transition-colors flex items-center gap-1"
-          >
-            Products
-          </button>
-          <button
-            onClick={() => showToast("Solutions overview coming soon", "info")}
-            className="hover:text-zoom-blue transition-colors flex items-center gap-1"
-          >
-            Solutions
-          </button>
-          <button
-            onClick={() => showToast("Resources coming soon", "info")}
-            className="hover:text-zoom-blue transition-colors flex items-center gap-1"
-          >
-            Resources
-          </button>
-          <button
-            onClick={() => showToast("Plans & Pricing coming soon", "info")}
-            className="hover:text-zoom-blue transition-colors"
-          >
-            Plans & Pricing
-          </button>
-        </nav>
+    <div className="sticky top-0 z-40 select-none">
+      {/* Tier 1: Top Dark Utility Bar (exact match to Zoom portal) */}
+      <div className="bg-[#0E121E] text-[#C4C7D4] text-[11px] font-normal px-4 sm:px-8 py-1.5 hidden md:flex items-center justify-end gap-5 border-b border-gray-800/40">
+        <button
+          onClick={() => showToast("Search Zoom products & help", "info")}
+          className="flex items-center gap-1.5 hover:text-white transition-colors"
+        >
+          <Search className="w-3.5 h-3.5 text-white" />
+          <span className="font-semibold text-white">Search</span>
+        </button>
+        <button
+          onClick={() => showToast("Opening Zoom Support Center", "info")}
+          className="hover:text-white transition-colors"
+        >
+          Support
+        </button>
+        <span className="hover:text-white transition-colors cursor-pointer font-medium">
+          1.888.799.9666
+        </span>
+        <span className="text-gray-600">|</span>
+        <button
+          onClick={() => showToast("Contact Sales at sales@zoom.us", "info")}
+          className="hover:text-white transition-colors"
+        >
+          Contact Sales
+        </button>
+        <button
+          onClick={() => showToast("Demo requested successfully", "info")}
+          className="hover:text-white transition-colors"
+        >
+          Request a Demo
+        </button>
       </div>
 
-      {/* Right: Actions, Search, Profile */}
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Quick Action Links matching Zoom header */}
-        <div className="hidden md:flex items-center gap-3 text-sm font-semibold">
-          <Link
-            href="/meetings/schedule"
-            className="text-zoom-text hover:text-zoom-blue px-2.5 py-1.5 transition-colors"
-          >
-            Schedule
+      {/* Tier 2: Primary Zoom Navigation Bar */}
+      <header className="h-14 bg-white border-b border-[#E4E4EB] px-4 sm:px-8 flex items-center justify-between">
+        {/* Left: Brand Logo + Primary Nav */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-1.5 focus:outline-none">
+            <span className="text-2xl font-black tracking-tight text-[#0B5CFF] hover:opacity-90 transition-opacity">
+              zoom
+            </span>
           </Link>
-          <button
-            onClick={onOpenJoinModal}
-            className="text-zoom-text hover:text-zoom-blue px-2.5 py-1.5 transition-colors"
-          >
-            Join
-          </button>
 
-          {/* Host Dropdown */}
-          <div className="relative">
+          {/* Desktop Category Links */}
+          <nav className="hidden lg:flex items-center gap-6 text-[13px] font-medium text-[#232333]">
             <button
-              onClick={() => setIsHostDropdownOpen(!isHostDropdownOpen)}
-              className="text-zoom-text hover:text-zoom-blue px-2.5 py-1.5 flex items-center gap-1 transition-colors"
+              onClick={() => showToast("Products catalog", "info")}
+              className="hover:text-[#0B5CFF] transition-colors"
             >
-              Host
-              <ChevronDown className="w-3.5 h-3.5 text-zoom-muted" />
+              Products
+            </button>
+            <button
+              onClick={() => showToast("Solutions overview", "info")}
+              className="hover:text-[#0B5CFF] transition-colors"
+            >
+              Solutions
+            </button>
+            <button
+              onClick={() => showToast("Resources directory", "info")}
+              className="hover:text-[#0B5CFF] transition-colors"
+            >
+              Resources
+            </button>
+            <button
+              onClick={() => showToast("Plans & Pricing", "info")}
+              className="hover:text-[#0B5CFF] transition-colors"
+            >
+              Plans & Pricing
+            </button>
+          </nav>
+        </div>
+
+        {/* Right: Actions, Search, Web App, Profile */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Quick Action Links */}
+          <div className="hidden md:flex items-center gap-3 text-sm font-medium text-[#232333]">
+            <Link
+              href="/meetings/schedule"
+              className="hover:text-[#0B5CFF] px-2 py-1 transition-colors"
+            >
+              Schedule
+            </Link>
+            <button
+              onClick={onOpenJoinModal || (() => router.push("/join"))}
+              className="hover:text-[#0B5CFF] px-2 py-1 transition-colors"
+            >
+              Join
             </button>
 
-            {isHostDropdownOpen && (
-              <div
-                className="absolute right-0 mt-1 w-48 bg-white rounded-zoom shadow-zoom-card border border-zoom-border py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
-                onClick={() => setIsHostDropdownOpen(false)}
+            {/* Host Dropdown */}
+            <div className="relative" ref={hostRef}>
+              <button
+                onClick={() => setIsHostDropdownOpen(!isHostDropdownOpen)}
+                className="hover:text-[#0B5CFF] px-2 py-1 flex items-center gap-1 transition-colors"
               >
-                <button
-                  onClick={onStartInstantMeeting}
-                  className="w-full text-left px-4 py-2 text-xs sm:text-sm text-zoom-text hover:bg-gray-50 flex items-center gap-2"
+                Host
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+
+              {isHostDropdownOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-[#E4E4EB] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  onClick={() => setIsHostDropdownOpen(false)}
                 >
-                  <Video className="w-4 h-4 text-zoom-orange" />
-                  With Video On
-                </button>
-                <button
-                  onClick={onStartInstantMeeting}
-                  className="w-full text-left px-4 py-2 text-xs sm:text-sm text-zoom-text hover:bg-gray-50 flex items-center gap-2"
+                  <button
+                    onClick={onStartInstantMeeting || (() => router.push("/meeting/3829148201"))}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <Video className="w-4 h-4 text-orange-500" />
+                    With Video On
+                  </button>
+                  <button
+                    onClick={onStartInstantMeeting || (() => router.push("/meeting/3829148201"))}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <Video className="w-4 h-4 text-gray-400" />
+                    With Video Off
+                  </button>
+                  <button
+                    onClick={() => {
+                      showToast("Starting Screen Share meeting...", "info");
+                      if (onStartInstantMeeting) onStartInstantMeeting();
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <Monitor className="w-4 h-4 text-blue-500" />
+                    Screen Share Only
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Web App Dropdown (as in user screenshot) */}
+            <div className="relative" ref={webAppRef}>
+              <button
+                onClick={() => setIsWebAppDropdownOpen(!isWebAppDropdownOpen)}
+                className="hover:text-[#0B5CFF] px-2 py-1 flex items-center gap-1 transition-colors"
+              >
+                Web App
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+
+              {isWebAppDropdownOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-[#E4E4EB] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  onClick={() => setIsWebAppDropdownOpen(false)}
                 >
-                  <Video className="w-4 h-4 text-zoom-muted" />
-                  With Video Off
-                </button>
+                  <button
+                    onClick={() => {
+                      setIsWebAppDropdownOpen(false);
+                      showToast("Active in Zoom Web Client", "info");
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50"
+                  >
+                    Open Zoom Web Client
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsWebAppDropdownOpen(false);
+                      showToast("Zoom Desktop Client installer downloaded", "info");
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50"
+                  >
+                    Download Desktop Client
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsWebAppDropdownOpen(false);
+                      showToast("Progressive Web App enabled", "info");
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50"
+                  >
+                    Install Zoom PWA
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Icon Utilities */}
+          <div className="flex items-center gap-1 sm:gap-1.5 text-gray-600">
+            <button
+              onClick={() => showToast("Zoom Help Center documentation", "info")}
+              className="p-1.5 hover:text-[#0B5CFF] hover:bg-gray-100 rounded-full transition-colors hidden sm:block"
+              title="Help & Support"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => showToast("No new notifications", "info")}
+              className="p-1.5 hover:text-[#0B5CFF] hover:bg-gray-100 rounded-full transition-colors relative hidden sm:block"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="w-2 h-2 bg-[#0B5CFF] rounded-full absolute top-1 right-1" />
+            </button>
+            <Link
+              href="/settings"
+              className="p-1.5 hover:text-[#0B5CFF] hover:bg-gray-100 rounded-full transition-colors"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Profile Avatar Dropdown (Orange Circle with White "V") */}
+          <div className="relative ml-1" ref={profileRef}>
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="flex items-center gap-1 focus:outline-none rounded-full ring-2 ring-transparent hover:ring-blue-200 transition-all"
+              aria-label="User account menu"
+            >
+              {/* Signature Zoom Burnt Orange circle with crisp white V */}
+              <Avatar
+                name={DEFAULT_USER.name}
+                size="sm"
+                className="cursor-pointer shadow-sm hover:scale-105 transition-transform"
+              />
+            </button>
+
+            {isProfileOpen && (
+              <div
+                className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-[#E4E4EB] py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                onClick={() => setIsProfileOpen(false)}
+              >
+                {/* Account Header */}
+                <div className="px-4 py-3 border-b border-[#E4E4EB] flex items-center gap-3 bg-gray-50/50">
+                  <Avatar name={DEFAULT_USER.name} size="md" />
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-bold text-[#1C1C28] truncate">
+                      {DEFAULT_USER.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {DEFAULT_USER.email}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-[#0B5CFF]">
+                        {DEFAULT_USER.plan} Plan
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upgrade Pro Banner */}
+                <div className="p-3 border-b border-[#E4E4EB] bg-gradient-to-r from-blue-50/60 to-cyan-50/60">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900">Upgrade to Pro</p>
+                      <p className="text-[11px] text-gray-500">Host unlimited 30hr meetings</p>
+                    </div>
+                    <button
+                      onClick={() => showToast("Upgrade to Pro checkout opened", "info")}
+                      className="px-2.5 py-1 text-xs font-semibold text-white bg-[#0B5CFF] hover:bg-[#0845BF] rounded-full transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Upgrade
+                    </button>
+                  </div>
+                </div>
+
+                {/* PMI Info */}
+                <div className="px-4 py-2.5 text-xs text-gray-500 border-b border-[#E4E4EB]">
+                  <span className="block font-medium">Personal Meeting ID (PMI)</span>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className="text-sm font-bold text-[#1C1C28] font-mono">
+                      {DEFAULT_USER.personal_meeting_id.slice(0, 3)}{" "}
+                      {DEFAULT_USER.personal_meeting_id.slice(3, 7)}{" "}
+                      {DEFAULT_USER.personal_meeting_id.slice(7)}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(DEFAULT_USER.personal_meeting_id);
+                        showToast("PMI copied to clipboard", "success");
+                      }}
+                      className="text-[11px] text-[#0B5CFF] hover:underline font-medium"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                {/* Navigation links */}
+                <div className="py-1">
+                  <Link
+                    href="/profile"
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <User className="w-4 h-4 text-gray-400" />
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <Settings className="w-4 h-4 text-gray-400" />
+                    Settings
+                  </Link>
+                  <Link
+                    href="/settings?tab=devices"
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <Smartphone className="w-4 h-4 text-gray-400" />
+                    Personal Devices
+                  </Link>
+                  <Link
+                    href="/settings?tab=privacy"
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-[#232333] hover:bg-gray-50 flex items-center gap-2.5"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-gray-400" />
+                    Data & Privacy
+                  </Link>
+                </div>
+
+                {/* Footer Sign Out */}
+                <div className="border-t border-[#E4E4EB] pt-1">
+                  <button
+                    onClick={() => showToast("Host account is currently active", "info")}
+                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 font-medium"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out ({DEFAULT_USER.name})
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
-
-        {/* Global Search Bar */}
-        <div className="hidden sm:flex items-center relative">
-          <Search className="w-4 h-4 absolute left-3 text-zoom-muted" />
-          <input
-            type="text"
-            placeholder="Search"
-            className="h-8 pl-9 pr-3 w-36 lg:w-48 bg-gray-100 hover:bg-gray-200/70 focus:bg-white text-xs rounded-full border border-transparent focus:border-zoom-blue focus:outline-none transition-colors"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") showToast("Search coming soon", "info");
-            }}
-          />
-        </div>
-
-        {/* Icon Utilities */}
-        <div className="flex items-center gap-1 sm:gap-2 text-zoom-muted">
-          <button
-            onClick={() => showToast("Support documentation available at zoom.us", "info")}
-            className="p-1.5 hover:text-zoom-text hover:bg-gray-100 rounded-full transition-colors"
-            title="Support"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => showToast("No new notifications", "info")}
-            className="p-1.5 hover:text-zoom-text hover:bg-gray-100 rounded-full transition-colors relative"
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="w-2 h-2 bg-zoom-blue rounded-full absolute top-1 right-1" />
-          </button>
-          <button
-            onClick={() => showToast("Settings opened", "info")}
-            className="p-1.5 hover:text-zoom-text hover:bg-gray-100 rounded-full transition-colors"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Profile Avatar Dropdown */}
-        <div className="relative ml-1">
-          <button
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-1.5 focus:outline-none"
-            aria-label="User profile menu"
-          >
-            <Avatar name={DEFAULT_USER.name} size="sm" isOnline={true} />
-            <ChevronDown className="w-3 h-3 text-zoom-muted hidden sm:block" />
-          </button>
-
-          {isProfileOpen && (
-            <div
-              className="absolute right-0 mt-2 w-64 bg-white rounded-zoom shadow-zoom-card border border-zoom-border py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
-              onClick={() => setIsProfileOpen(false)}
-            >
-              <div className="px-4 py-2 border-b border-zoom-border flex items-center gap-3">
-                <Avatar name={DEFAULT_USER.name} size="md" isOnline={true} />
-                <div className="overflow-hidden">
-                  <p className="text-sm font-bold text-zoom-text truncate">
-                    {DEFAULT_USER.name}
-                  </p>
-                  <p className="text-xs text-zoom-muted truncate">
-                    {DEFAULT_USER.email}
-                  </p>
-                  <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-zoom-blue">
-                    Licensed Host
-                  </span>
-                </div>
-              </div>
-
-              <div className="py-1">
-                <div className="px-4 py-1.5 text-xs text-zoom-muted">
-                  Personal Meeting ID (PMI)
-                  <p className="text-sm font-semibold text-zoom-text font-mono">
-                    {DEFAULT_USER.personal_meeting_id.slice(0, 3)}{" "}
-                    {DEFAULT_USER.personal_meeting_id.slice(3, 7)}{" "}
-                    {DEFAULT_USER.personal_meeting_id.slice(7)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-t border-zoom-border pt-1">
-                <button
-                  onClick={() => showToast("Profile settings coming soon", "info")}
-                  className="w-full text-left px-4 py-2 text-xs sm:text-sm text-zoom-text hover:bg-gray-50 flex items-center gap-2.5"
-                >
-                  <User className="w-4 h-4 text-zoom-muted" />
-                  My Profile
-                </button>
-                <button
-                  onClick={() => showToast("Host is permanently authenticated in demo", "info")}
-                  className="w-full text-left px-4 py-2 text-xs sm:text-sm text-zoom-red hover:bg-red-50 flex items-center gap-2.5"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out (Vinayak)
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
+      </header>
+    </div>
   );
 }
