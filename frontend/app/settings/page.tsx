@@ -173,7 +173,7 @@ const SETTINGS_CATEGORIES: SettingCategory[] = [
   },
 ];
 
-export default function SettingsPage() {
+function SettingsContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") || "clips";
   const { showToast } = useToast();
@@ -635,5 +635,13 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <SettingsContent />
+    </React.Suspense>
   );
 }

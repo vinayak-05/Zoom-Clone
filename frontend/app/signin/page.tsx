@@ -15,7 +15,7 @@ import { isValidEmail, checkEmailExists, loginWithEmail, AuthUser } from "../../
 import { OAuthModal } from "../../components/modals/OAuthModal";
 import { useToast } from "../../components/ui/Toast";
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -365,5 +365,13 @@ export default function SignInPage() {
         onSuccess={handleOAuthSuccess}
       />
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <SignInContent />
+    </React.Suspense>
   );
 }

@@ -11,7 +11,7 @@ import { formatMeetingCode } from "../../../lib/utils";
 import { DEFAULT_USER } from "../../../lib/constants";
 import type { MeetingValidationResponse } from "../../../lib/types";
 
-export default function JoinByLinkPage() {
+function JoinByLinkContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -193,5 +193,13 @@ export default function JoinByLinkPage() {
         Zoom Clone Web App • End-to-End Encrypted Communication
       </div>
     </div>
+  );
+}
+
+export default function JoinByLinkPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-zoom-bg" />}>
+      <JoinByLinkContent />
+    </React.Suspense>
   );
 }
