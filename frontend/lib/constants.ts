@@ -9,7 +9,7 @@ export const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8000";
 
 export const DEFAULT_USER = {
-  id: 0,
+  id: 1,
   name: "Guest",
   email: "guest@zoomclone.com",
   avatar_url: null,

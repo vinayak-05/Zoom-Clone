@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.meeting import Meeting, MeetingStatus
 from app.models.participant import Participant, ParticipantRole
+from app.models.user import User
 from app.schemas.participant import (
     ParticipantJoinRequest,
     ParticipantJoinResponse,
@@ -58,13 +59,28 @@ class ParticipantService:
                 meeting.started_at = now
             db.commit()
 
+        # Safely resolve user_id against database foreign key
+        actual_user_id = data.user_id
+        if actual_user_id is not None:
+            user_rec = db.get(User, actual_user_id) if actual_user_id > 0 else None
+            if not user_rec:
+                # If display name matches host name, link to host_id
+                if meeting.host and data.display_name.strip().lower() == meeting.host.name.lower():
+                    actual_user_id = meeting.host_id
+                else:
+                    actual_user_id = None
+            else:
+                actual_user_id = user_rec.id
+
         # Determine role
-        is_host = (data.user_id is not None and data.user_id == meeting.host_id)
+        is_host = (actual_user_id is not None and actual_user_id == meeting.host_id)
+        if not is_host and meeting.host:
+            is_host = (data.display_name.strip().lower() == meeting.host.name.lower())
         role = ParticipantRole.HOST.value if is_host else ParticipantRole.PARTICIPANT.value
 
         # Reuse existing active session if user already joined this meeting
-        if data.user_id is not None:
-            existing = ParticipantRepository.get_active_by_user(db, meeting.id, data.user_id)
+        if actual_user_id is not None:
+            existing = ParticipantRepository.get_active_by_user(db, meeting.id, actual_user_id)
             if existing:
                 existing.display_name = data.display_name.strip()
                 existing.is_muted = data.is_muted
@@ -72,7 +88,7 @@ class ParticipantService:
                 existing.role = role
                 db.commit()
                 db.refresh(existing)
-                ParticipantRepository.cleanup_duplicate_user_sessions(db, meeting.id, data.user_id, existing.id)
+                ParticipantRepository.cleanup_duplicate_user_sessions(db, meeting.id, actual_user_id, existing.id)
                 return ParticipantJoinResponse(
                     participant=ParticipantRead.model_validate(existing),
                     meeting_id=meeting.id,
@@ -84,7 +100,7 @@ class ParticipantService:
         # Create new join session row
         participant = Participant(
             meeting_id=meeting.id,
-            user_id=data.user_id,
+            user_id=actual_user_id,
             display_name=data.display_name.strip(),
             role=role,
             is_muted=data.is_muted,
