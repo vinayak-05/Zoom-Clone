@@ -35,7 +35,11 @@ export function useMeetingSocket({
   useEffect(() => {
     if (!meetingCode || !participantId) return;
 
-    const wsUrl = `${WS_BASE_URL}/ws/meeting/${meetingCode}?participant_id=${participantId}`;
+    let wsHost = WS_BASE_URL;
+    if (typeof window !== "undefined" && wsHost.includes("localhost:8000")) {
+      wsHost = "ws://127.0.0.1:8000";
+    }
+    const wsUrl = `${wsHost}/ws/meeting/${meetingCode}?participant_id=${participantId}`;
     let socket: WebSocket;
 
     try {

@@ -22,7 +22,7 @@ import { useLocalMedia } from "../../../hooks/useLocalMedia";
 import { useMeetingSocket } from "../../../hooks/useMeetingSocket";
 import { api } from "../../../lib/api";
 import { formatMeetingCode, formatTime } from "../../../lib/utils";
-import { DEFAULT_USER } from "../../../lib/constants";
+import { DEFAULT_USER, API_BASE_URL } from "../../../lib/constants";
 import { useToast } from "../../../components/ui/Toast";
 import type {
   MeetingValidationResponse,
@@ -100,7 +100,7 @@ export default function MeetingRoomPage() {
       stopAllTracks();
       if (joinData?.participant?.id) {
         navigator.sendBeacon?.(
-          `http://localhost:8000/api/v1/meetings/code/${codeParam}/leave?participant_id=${joinData.participant.id}`
+          `${API_BASE_URL}/api/v1/meetings/code/${codeParam}/leave?participant_id=${joinData.participant.id}`
         );
       }
     };

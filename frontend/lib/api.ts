@@ -30,7 +30,11 @@ class ApiError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let primaryBase = API_BASE_URL;
+  if (typeof window !== "undefined" && primaryBase.includes("localhost:8000")) {
+    primaryBase = "http://127.0.0.1:8000";
+  }
+  const url = `${primaryBase}${endpoint}`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...((options.headers as Record<string, string>) || {}),
@@ -57,10 +61,27 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     }
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (netErr) {
+    // If direct connect failed, retry via Next.js proxy rewrite
+    if (typeof window !== "undefined" && primaryBase !== "") {
+      try {
+        response = await fetch(endpoint, {
+          ...options,
+          headers,
+        });
+      } catch {
+        throw netErr;
+      }
+    } else {
+      throw netErr;
+    }
+  }
 
   if (!response.ok) {
     let detail = `Request failed with status ${response.status}`;
