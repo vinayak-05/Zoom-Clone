@@ -13,6 +13,7 @@ export interface ParticipantTileData {
   isHost?: boolean;
   isLocal?: boolean;
   isSpeaking?: boolean;
+  isIncomingVideoStopped?: boolean;
   reaction?: string | null;
 }
 
@@ -51,7 +52,7 @@ export function SpeakerView({
             >
               <VideoTile
                 {...p}
-                className="w-full h-full hover:ring-2 hover:ring-zoom-blue"
+                className="w-full h-full hover:ring-2 hover:ring-blue-500"
               />
             </div>
           ))}

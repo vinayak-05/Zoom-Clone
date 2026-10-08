@@ -2,10 +2,9 @@
 
 import React, { useEffect, useRef, useCallback } from "react";
 import { MicOff, Hand, Pin } from "lucide-react";
-import { Avatar } from "../ui/Avatar";
-import { cn } from "../../lib/utils";
+import { cn, getInitials, getAvatarHexColor } from "../../lib/utils";
 
-interface VideoTileProps {
+export interface VideoTileProps {
   id: string | number;
   displayName: string;
   stream?: MediaStream | null;
@@ -15,6 +14,7 @@ interface VideoTileProps {
   isHost?: boolean;
   isLocal?: boolean;
   isSpeaking?: boolean;
+  isIncomingVideoStopped?: boolean;
   reaction?: string | null;
   className?: string;
   onPin?: () => void;
@@ -31,6 +31,7 @@ export function VideoTile({
   isHost = false,
   isLocal = false,
   isSpeaking = false,
+  isIncomingVideoStopped = false,
   reaction = null,
   className,
   onPin,
@@ -38,8 +39,12 @@ export function VideoTile({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  // If incoming video stopped by user preference, treat remote videos as video-off
+  const isVideoSuppressed = !isLocal && isIncomingVideoStopped;
+
   const hasLiveVideo = Boolean(
-    stream &&
+    !isVideoSuppressed &&
+      stream &&
       !isVideoOff &&
       (stream.getVideoTracks().length === 0 || stream.getVideoTracks().some((t) => t.readyState === "live"))
   );
@@ -47,21 +52,21 @@ export function VideoTile({
   const bindVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
       videoRef.current = el;
-      if (el && stream && !isVideoOff) {
+      if (el && stream && !isVideoOff && !isVideoSuppressed) {
         if (el.srcObject !== stream) {
           el.srcObject = stream;
         }
         el.play().catch((err) => console.warn("Video play error:", err));
       }
     },
-    [stream, isVideoOff]
+    [stream, isVideoOff, isVideoSuppressed]
   );
 
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
-    if (stream && !isVideoOff) {
+    if (stream && !isVideoOff && !isVideoSuppressed) {
       if (videoEl.srcObject !== stream) {
         videoEl.srcObject = stream;
       }
@@ -71,12 +76,15 @@ export function VideoTile({
     } else {
       videoEl.srcObject = null;
     }
-  }, [stream, isVideoOff]);
+  }, [stream, isVideoOff, isVideoSuppressed]);
+
+  const initialLetter = (displayName || "V").trim().charAt(0).toUpperCase();
+  const avatarHexColor = getAvatarHexColor(displayName || "Vinayak");
 
   return (
     <div
       className={cn(
-        "relative rounded-zoom overflow-hidden bg-[#2E2E38] flex items-center justify-center select-none group transition-all duration-150",
+        "relative rounded-xl overflow-hidden bg-[#18181D] flex items-center justify-center select-none group transition-all duration-150 w-full h-full",
         isSpeaking && "ring-2 ring-green-500",
         className
       )}
@@ -94,10 +102,15 @@ export function VideoTile({
         )}
       />
 
-      {/* Video Off Avatar State */}
+      {/* Video Off Exact Zoom Avatar State (Screenshot 1: Burnt Orange Square with Bold Letter) */}
       {!hasLiveVideo && (
         <div className="flex flex-col items-center justify-center p-4">
-          <Avatar name={displayName} size="xl" />
+          <div
+            style={{ backgroundColor: avatarHexColor }}
+            className="w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center text-5xl sm:text-6xl font-bold text-white shadow-xl select-none transition-transform hover:scale-102"
+          >
+            {initialLetter}
+          </div>
         </div>
       )}
 
@@ -113,7 +126,7 @@ export function VideoTile({
       {/* Hand Raised Badge (Top Left) */}
       {isHandRaised && (
         <div className="absolute top-3 left-3 bg-yellow-500 text-black px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md z-10 animate-pulse">
-          <Hand className="w-3.5 h-3.5" />
+          <Hand className="w-3.5 h-3.5 fill-current" />
           <span>Hand Raised</span>
         </div>
       )}
@@ -129,17 +142,15 @@ export function VideoTile({
         </button>
       )}
 
-      {/* Bottom Information Overlay */}
-      <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
-        <div className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded text-xs text-white font-medium flex items-center gap-1.5 max-w-[85%] truncate">
-          {isMuted && (
-            <MicOff className="w-3 h-3 text-zoom-red flex-shrink-0" />
+      {/* Bottom-left Information Pill (Screenshot 1: Red Mic Icon + Display Name) */}
+      <div className="absolute bottom-3 left-3 flex items-center pointer-events-none z-10">
+        <div className="bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-md text-xs text-white font-medium flex items-center gap-1.5 max-w-[240px] truncate shadow-sm">
+          {isMuted ? (
+            <MicOff className="w-3.5 h-3.5 text-[#E11D48] flex-shrink-0" />
+          ) : (
+            <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
           )}
-          <span className="truncate">
-            {displayName}
-            {isLocal && " (Me)"}
-            {isHost && " (Host)"}
-          </span>
+          <span className="truncate">{displayName}</span>
         </div>
       </div>
     </div>
