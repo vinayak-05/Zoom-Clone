@@ -42,7 +42,16 @@ export function InviteModal({
   };
 
   const handleCopyFullInvitation = async () => {
-    const fullText = `Vinayak is inviting you to a scheduled Zoom meeting.\n\nTopic: ${title}\n\nJoin Zoom Meeting:\n${inviteLink}\n\nMeeting ID: ${formattedCode}${
+    let hostName = "Host";
+    try {
+      const stored = localStorage.getItem("zoom_current_user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u?.name) hostName = u.name;
+      }
+    } catch {}
+
+    const fullText = `${hostName} is inviting you to a scheduled Zoom meeting.\n\nTopic: ${title}\n\nJoin Zoom Meeting:\n${inviteLink}\n\nMeeting ID: ${formattedCode}${
       passcode ? `\nPasscode: ${passcode}` : ""
     }`;
     try {

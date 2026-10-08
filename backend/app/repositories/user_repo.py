@@ -19,9 +19,17 @@ class UserRepository:
 
     @staticmethod
     def get_default_host(db: Session) -> User:
-        """Fetch the default host user (Vinayak)."""
-        stmt = select(User).where(User.email.in_(["vinayak@zoomclone.com", "vinayak@zoomclone.local"]))
+        """Fetch the default host user (Guest)."""
+        stmt = select(User).where(
+            User.email.in_([
+                "guest@zoomclone.com",
+                "guest@zomclone.com",
+                "guest@zoomclone.local",
+            ])
+        )
         user = db.scalars(stmt).first()
+        if not user:
+            user = db.scalars(select(User).where(User.name == "Guest")).first()
         if not user:
             # Fallback to the first available user in DB
             user = db.scalars(select(User)).first()

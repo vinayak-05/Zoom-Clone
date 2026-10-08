@@ -31,9 +31,27 @@ def test_get_current_user(client):
     response = client.get("/api/v1/users/me")
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == "Vinayak"
-    assert data["email"] in ("vinayak@zoomclone.com", "vinayak@zoomclone.local")
+    assert data["name"] == "Guest"
+    assert data["email"] in ("guest@zoomclone.com", "guest@zomclone.com", "guest@zoomclone.local")
     assert "personal_meeting_id" in data
+
+
+def test_other_user_sees_no_preseeded_meetings(client):
+    # Other user should have 0 meetings initially (preseeded data belongs only to Guest)
+    res_other = client.get(
+        "/api/v1/meetings?filter=upcoming",
+        headers={"X-User-Email": "sarah.c@techcorp.io"},
+    )
+    assert res_other.status_code == 200
+    assert len(res_other.json()) == 0
+
+    # Guest should have preseeded meetings
+    res_guest = client.get(
+        "/api/v1/meetings?filter=upcoming",
+        headers={"X-User-Email": "guest@zoomclone.com"},
+    )
+    assert res_guest.status_code == 200
+    assert len(res_guest.json()) >= 1
 
 
 def test_list_upcoming_meetings(client):

@@ -31,10 +31,31 @@ class ApiError extends Error {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const headers = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
+
+  if (typeof window !== "undefined") {
+    try {
+      const token = localStorage.getItem("zoom_auth_token");
+      const stored = localStorage.getItem("zoom_current_user");
+      if (token && !headers["Authorization"]) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.email && !headers["X-User-Email"]) {
+          headers["X-User-Email"] = parsed.email;
+        }
+        if (parsed?.id && !headers["X-User-Id"]) {
+          headers["X-User-Id"] = String(parsed.id);
+        }
+      }
+    } catch {
+      // Ignore storage read errors
+    }
+  }
 
   const response = await fetch(url, {
     ...options,

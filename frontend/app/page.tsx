@@ -10,6 +10,7 @@ import { MeetingList } from "../components/dashboard/MeetingList";
 import { JoinMeetingModal } from "../components/modals/JoinMeetingModal";
 import { useMeetings } from "../hooks/useMeetings";
 import { useToast } from "../components/ui/Toast";
+import { getStoredUser } from "../lib/auth";
 import type { Meeting } from "../lib/types";
 
 export default function HomePage() {
@@ -42,7 +43,8 @@ export default function HomePage() {
 
       // Save preference for immediate room access
       if (typeof window !== "undefined") {
-        sessionStorage.setItem("zoom_displayName", "Vinayak");
+        const currentUser = getStoredUser();
+        sessionStorage.setItem("zoom_displayName", currentUser?.name || "Guest");
         sessionStorage.setItem("zoom_noVideo", isVideoDefault ? "0" : "1");
         sessionStorage.setItem("zoom_noAudio", "0");
       }

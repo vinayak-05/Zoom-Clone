@@ -252,12 +252,14 @@ export default function MeetingRoomPage() {
         video: !settings.isVideoOff,
       });
 
-      // Check if user is host Vinayak
-      const isHostUser = settings.displayName === DEFAULT_USER.name;
+      // Check if user is host
+      const activeUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("zoom_current_user") || "null") : null;
+      const hostNameMatch = Boolean(validation?.host_name && settings.displayName.toLowerCase() === validation.host_name.toLowerCase());
+      const isHostUser = hostNameMatch || Boolean(activeUser?.name && validation?.host_name && activeUser.name.toLowerCase() === validation.host_name.toLowerCase());
 
       const res = await api.joinMeeting(codeParam, {
         display_name: settings.displayName,
-        user_id: isHostUser ? DEFAULT_USER.id : null,
+        user_id: activeUser?.id || (isHostUser ? DEFAULT_USER.id : null),
         passcode: settings.passcode,
         is_muted: settings.isMuted,
         is_video_off: settings.isVideoOff,
@@ -433,7 +435,7 @@ export default function MeetingRoomPage() {
       <PreJoinScreen
         meetingTitle={validation?.title || "Zoom Meeting"}
         meetingCode={codeParam}
-        hostName={validation?.host_name || "Vinayak"}
+        hostName={validation?.host_name || "Host"}
         initialDisplayName={DEFAULT_USER.name}
         hasPasscode={Boolean(validation?.has_passcode)}
         onJoin={handleJoinFromPreJoin}
@@ -533,7 +535,7 @@ export default function MeetingRoomPage() {
               <div>
                 <span className="text-gray-400">Host:</span>
                 <p className="font-semibold text-white">
-                  {validation?.host_name || "Vinayak"}
+                  {validation?.host_name || "Host"}
                 </p>
               </div>
 

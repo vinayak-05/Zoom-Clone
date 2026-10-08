@@ -13,17 +13,17 @@ def client():
         yield test_client
 
 
-def test_auth_login_vinayak(client):
-    res = client.post("/api/v1/auth/login", json={"email": "vinayak@zoomclone.com"})
+def test_auth_login_guest(client):
+    res = client.post("/api/v1/auth/login", json={"email": "guest@zoomclone.com"})
     assert res.status_code == 200
     data = res.json()
-    assert data["user"]["name"] == "Vinayak"
+    assert data["user"]["name"] == "Guest"
     assert "access_token" in data
 
 
 def test_auth_check_email(client):
-    # Existing email
-    res1 = client.post("/api/v1/auth/check-email", json={"email": "vinayak@zoomclone.com"})
+    # Existing guest email
+    res1 = client.post("/api/v1/auth/check-email", json={"email": "guest@zoomclone.com"})
     assert res1.status_code == 200
     assert res1.json()["exists"] is True
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,6 +24,7 @@ import { useMeetings } from "../../hooks/useMeetings";
 import { useToast } from "../../components/ui/Toast";
 import { DEFAULT_USER } from "../../lib/constants";
 import { formatMeetingCode } from "../../lib/utils";
+import { getStoredUser, AuthUser } from "../../lib/auth";
 import type { Meeting } from "../../lib/types";
 
 type MeetingsTab = "upcoming" | "previous" | "personal" | "templates";
@@ -31,9 +32,17 @@ type MeetingsTab = "upcoming" | "previous" | "personal" | "templates";
 export default function MeetingsPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const [currentUser, setCurrentUser] = useState<AuthUser>(DEFAULT_USER as AuthUser);
   const [activeTab, setActiveTab] = useState<MeetingsTab>("upcoming");
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [copiedPmi, setCopiedPmi] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredUser();
+    if (stored) {
+      setCurrentUser(stored);
+    }
+  }, []);
 
   const {
     meetings,
@@ -53,12 +62,12 @@ export default function MeetingsPage() {
   };
 
   const handleStartPersonalRoom = () => {
-    router.push(`/meeting/${DEFAULT_USER.personal_meeting_id}`);
+    router.push(`/meeting/${currentUser.personal_meeting_id}`);
   };
 
   const handleCopyPersonalInvitation = async () => {
-    const text = `Join Vinayak's Personal Meeting Room\nhttp://localhost:3000/join/${DEFAULT_USER.personal_meeting_id}\n\nMeeting ID: ${formatMeetingCode(
-      DEFAULT_USER.personal_meeting_id
+    const text = `Join ${currentUser.name}'s Personal Meeting Room\nhttp://localhost:3000/join/${currentUser.personal_meeting_id}\n\nMeeting ID: ${formatMeetingCode(
+      currentUser.personal_meeting_id
     )}\nPasscode: 2026PMI`;
     try {
       await navigator.clipboard.writeText(text);
@@ -227,7 +236,7 @@ export default function MeetingsPage() {
             <div className="bg-white rounded-zoom border border-zoom-border p-6 shadow-zoom space-y-6">
               <div className="border-b border-zoom-border pb-4">
                 <h2 className="text-xl font-bold text-zoom-text">
-                  Vinayak&apos;s Personal Meeting Room
+                  {currentUser.name}&apos;s Personal Meeting Room
                 </h2>
                 <p className="text-xs text-zoom-muted mt-1">
                   Your Personal Meeting Room is a permanently reserved meeting room with a
@@ -239,7 +248,7 @@ export default function MeetingsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2">
                   <span className="text-zoom-muted font-medium">Meeting ID</span>
                   <span className="font-mono font-bold text-base text-zoom-text">
-                    {formatMeetingCode(DEFAULT_USER.personal_meeting_id)}
+                    {formatMeetingCode(currentUser.personal_meeting_id)}
                   </span>
                 </div>
 
@@ -254,7 +263,7 @@ export default function MeetingsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2">
                   <span className="text-zoom-muted font-medium">Invite Link</span>
                   <span className="text-zoom-blue truncate font-medium">
-                    http://localhost:3000/join/{DEFAULT_USER.personal_meeting_id}
+                    http://localhost:3000/join/{currentUser.personal_meeting_id}
                   </span>
                 </div>
 

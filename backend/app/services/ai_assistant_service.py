@@ -9,7 +9,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are the Zoom Virtual Assistant and AI Companion for Zoom Web App Clone.
-You assist Vinayak and participants with:
+You assist users and participants with:
 - Managing and scheduling Zoom meetings
 - Account settings (Clips with avatars, Canvas AI revision, Paper, Sheets with AI Formula & Function, Slides, Waiting Room, Video/Audio defaults)
 - Real-time meeting troubleshooting (camera, microphone, screen sharing)

@@ -21,12 +21,12 @@ def run_seed() -> None:
 
         now = datetime.now(timezone.utc)
 
-        # 1. Seed Users (Default user Vinayak + 5 team members)
+        # 1. Seed Users (Default user Guest + 5 team members)
         host_user = User(
-            name="Vinayak",
-            email="vinayak@zoomclone.com",
+            name="Guest",
+            email="guest@zoomclone.com",
             avatar_url=None,
-            personal_meeting_id="3829148201",
+            personal_meeting_id="5001234567",
             timezone="Asia/Kolkata",
         )
         db.add(host_user)
@@ -71,10 +71,10 @@ def run_seed() -> None:
         db.add_all(sample_users)
         db.flush()  # Obtain IDs
 
-        # 2. Personal Meeting Room for Vinayak
+        # 2. Personal Meeting Room for Guest
         personal_room = Meeting(
             meeting_code=host_user.personal_meeting_id,
-            title="Vinayak's Personal Meeting Room",
+            title="Guest's Personal Meeting Room",
             description="My personal meeting room. Permanent meeting link for recurring 1:1s and quick syncs.",
             host_id=host_user.id,
             type=MeetingType.PERSONAL.value,

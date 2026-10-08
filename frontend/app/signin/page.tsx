@@ -241,10 +241,10 @@ export default function SignInPage() {
 
           {/* Quick Demo Hint */}
           <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[11px] text-gray-600 flex items-center justify-between">
-            <span>Seeded Demo Account: <strong className="text-gray-900">vinayak@zoomclone.com</strong></span>
+            <span>Seeded Demo Account: <strong className="text-gray-900">guest@zoomclone.com</strong></span>
             <button
               onClick={() => {
-                setEmailInput("vinayak@zoomclone.com");
+                setEmailInput("guest@zoomclone.com");
                 setErrorMessage("");
                 setAccountNotFound(false);
               }}

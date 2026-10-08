@@ -23,37 +23,40 @@ from app.services.meeting_service import MeetingService
 from app.services.participant_service import ParticipantService
 from app.services.chat_service import ChatService
 
+from app.models.user import User
+from app.api.deps import get_current_user_from_request
+
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 
 
 @router.post("/instant", status_code=status.HTTP_201_CREATED)
 def create_instant_meeting(
     data: MeetingCreateInstant = MeetingCreateInstant(),
+    current_user: User = Depends(get_current_user_from_request),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Create an instant meeting, set status to live, and return host participant and invite link."""
-    host_user = UserRepository.get_default_host(db)
-    return MeetingService.create_instant_meeting(db, host_user, data)
+    return MeetingService.create_instant_meeting(db, current_user, data)
 
 
 @router.post("/schedule", status_code=status.HTTP_201_CREATED)
 def schedule_meeting(
     data: MeetingCreateScheduled,
+    current_user: User = Depends(get_current_user_from_request),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Schedule a future meeting with validation on start datetime and duration."""
-    host_user = UserRepository.get_default_host(db)
-    return MeetingService.create_scheduled_meeting(db, host_user, data)
+    return MeetingService.create_scheduled_meeting(db, current_user, data)
 
 
 @router.get("", response_model=list[MeetingRead])
 def list_meetings(
     filter: str = Query("upcoming", pattern="^(upcoming|recent|all)$"),
+    current_user: User = Depends(get_current_user_from_request),
     db: Session = Depends(get_db),
 ) -> list[MeetingRead]:
     """List meetings for current user, filtered by upcoming, recent, or all."""
-    host_user = UserRepository.get_default_host(db)
-    return MeetingService.list_meetings(db, host_user.id, filter)
+    return MeetingService.list_meetings(db, current_user.id, filter)
 
 
 @router.get("/{id}", response_model=MeetingRead)

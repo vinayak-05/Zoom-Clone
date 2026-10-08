@@ -104,33 +104,33 @@ export function OAuthModal({ isOpen, provider, onClose, onSuccess }: OAuthModalP
           <div className="p-4 space-y-2">
             <p className="text-xs font-semibold text-gray-600 px-2 mb-1">Choose an account</p>
 
-            {/* Account 1: Vinayak */}
+            {/* Account 1: Guest */}
             <button
-              onClick={() => handleSelectAccount("vinayak@zoomclone.com", "Vinayak")}
+              onClick={() => handleSelectAccount("guest@zoomclone.com", "Guest")}
               disabled={loading}
               className="w-full p-2.5 rounded-xl hover:bg-gray-50 border border-gray-100 flex items-center gap-3 transition-colors text-left group cursor-pointer"
             >
-              <Avatar name="Vinayak" size="sm" />
+              <Avatar name="Guest" size="sm" />
               <div className="flex-1 overflow-hidden">
                 <p className="text-xs font-bold text-gray-900 group-hover:text-[#0B5CFF] transition-colors">
-                  Vinayak
+                  Guest
                 </p>
-                <p className="text-[11px] text-gray-500 truncate">vinayak@zoomclone.com</p>
+                <p className="text-[11px] text-gray-500 truncate">guest@zoomclone.com</p>
               </div>
             </button>
 
-            {/* Account 2: Guest */}
+            {/* Account 2: Sarah Connor */}
             <button
-              onClick={() => handleSelectAccount("guest@zoomclone.local", "Guest User")}
+              onClick={() => handleSelectAccount("sarah.c@techcorp.io", "Sarah Connor")}
               disabled={loading}
               className="w-full p-2.5 rounded-xl hover:bg-gray-50 border border-gray-100 flex items-center gap-3 transition-colors text-left group cursor-pointer"
             >
-              <Avatar name="Guest User" size="sm" />
+              <Avatar name="Sarah Connor" size="sm" />
               <div className="flex-1 overflow-hidden">
                 <p className="text-xs font-bold text-gray-900 group-hover:text-[#0B5CFF] transition-colors">
-                  Guest User
+                  Sarah Connor
                 </p>
-                <p className="text-[11px] text-gray-500 truncate">guest@zoomclone.local</p>
+                <p className="text-[11px] text-gray-500 truncate">sarah.c@techcorp.io</p>
               </div>
             </button>
 

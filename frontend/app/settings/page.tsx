@@ -185,7 +185,7 @@ export default function SettingsPage() {
   const [isHelpChatOpen, setIsHelpChatOpen] = useState(false);
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string }>>([
-    { sender: "assistant", text: "Hi Vinayak! I'm your Zoom AI Companion. How can I help with your account settings or meetings today?" },
+    { sender: "assistant", text: "Hi! I'm your Zoom AI Companion. How can I help with your account settings or meetings today?" },
   ]);
   const [chatInput, setChatInput] = useState("");
 
