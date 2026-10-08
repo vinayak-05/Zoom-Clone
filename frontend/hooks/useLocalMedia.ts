@@ -187,15 +187,30 @@ export function useLocalMedia(options: LocalMediaOptions = {}) {
 
   const stopAllTracks = useCallback(() => {
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current.getTracks().forEach((t) => {
+        t.stop();
+      });
       localStreamRef.current = null;
-      setLocalStream(null);
     }
+    if (localStream) {
+      localStream.getTracks().forEach((t) => {
+        t.stop();
+      });
+    }
+    setLocalStream(null);
     stopScreenShare();
-  }, [stopScreenShare]);
+  }, [localStream, stopScreenShare]);
 
   useEffect(() => {
+    const handleUnload = () => {
+      stopAllTracks();
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+
     return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
       stopAllTracks();
     };
   }, [stopAllTracks]);

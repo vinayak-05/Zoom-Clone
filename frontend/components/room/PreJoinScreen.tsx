@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, Settings, ArrowLeft, Shield } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -32,6 +32,7 @@ export function PreJoinScreen({
   onJoin,
   isLoading = false,
 }: PreJoinScreenProps) {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [passcode, setPasscode] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -39,6 +40,37 @@ export function PreJoinScreen({
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const stopAllPreviewTracks = useCallback(() => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((t) => t.stop());
+      setMediaStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [mediaStream]);
+
+  // Stop hardware preview if page unloads or user navigates back
+  useEffect(() => {
+    const handleUnload = () => {
+      stopAllPreviewTracks();
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+    window.addEventListener("popstate", handleUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
+      window.removeEventListener("popstate", handleUnload);
+      stopAllPreviewTracks();
+    };
+  }, [stopAllPreviewTracks]);
 
   // Initialize preview stream & restore sessionStorage settings
   useEffect(() => {
@@ -182,13 +214,17 @@ export function PreJoinScreen({
     <div className="min-h-screen bg-zoom-bg flex flex-col justify-between p-4 sm:p-6">
       {/* Top Header */}
       <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={() => {
+            stopAllPreviewTracks();
+            router.push("/");
+          }}
           className="flex items-center gap-2 text-sm text-zoom-muted hover:text-zoom-text transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Home</span>
-        </Link>
+        </button>
         <div className="flex items-center gap-1.5 font-black text-xl text-zoom-blue">
           zoom
         </div>

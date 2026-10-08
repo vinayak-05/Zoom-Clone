@@ -11,6 +11,7 @@ import {
   Clock,
   ChevronDown,
   Info,
+  LogOut,
 } from "lucide-react";
 import { PreJoinScreen } from "../../../components/room/PreJoinScreen";
 import { VideoGrid } from "../../../components/room/VideoGrid";
@@ -51,6 +52,7 @@ export default function MeetingRoomPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [copiedInfo, setCopiedInfo] = useState(false);
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
 
   // In-Meeting Real-time States
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -78,6 +80,39 @@ export default function MeetingRoomPage() {
     initialAudio: true,
     initialVideo: true,
   });
+
+  // Intercept browser back button & page unload while inside meeting room
+  useEffect(() => {
+    if (!hasJoined) return;
+
+    // Push initial history state so pressing back triggers popstate instead of instantly exiting
+    window.history.pushState({ inMeeting: true }, "", window.location.href);
+
+    const handlePopState = () => {
+      // Re-push history state to prevent exiting without confirmation
+      window.history.pushState({ inMeeting: true }, "", window.location.href);
+      setShowLeaveConfirmModal(true);
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+      stopAllTracks();
+      if (joinData?.participant?.id) {
+        navigator.sendBeacon?.(
+          `http://localhost:8000/api/v1/meetings/code/${codeParam}/leave?participant_id=${joinData.participant.id}`
+        );
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasJoined, joinData?.participant?.id, codeParam, stopAllTracks]);
 
   // 1. Initial Validation on Mount
   useEffect(() => {
@@ -619,6 +654,60 @@ export default function MeetingRoomPage() {
         onLeaveMeeting={handleLeaveMeeting}
         onEndMeetingForAll={isHost ? handleEndMeetingForAll : undefined}
       />
+
+      {/* Leave / End Meeting Confirmation Modal (Shown on Browser Back button or Leave trigger) */}
+      {showLeaveConfirmModal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[#242430] border border-white/10 rounded-2xl max-w-sm w-full p-6 text-white shadow-2xl text-center space-y-4 animate-in zoom-in-95">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 text-zoom-red mx-auto flex items-center justify-center">
+              <LogOut className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-white">Leave Meeting?</h3>
+              <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
+                {isHost
+                  ? "You are the meeting host. Would you like to end the meeting for everyone or just leave?"
+                  : "Are you sure you want to leave this meeting?"}
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {isHost && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowLeaveConfirmModal(false);
+                    await handleEndMeetingForAll();
+                  }}
+                  className="w-full py-2.5 rounded-lg bg-zoom-red hover:bg-zoom-red-hover text-white text-xs font-bold transition-colors shadow"
+                >
+                  End Meeting for All
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowLeaveConfirmModal(false);
+                  await handleLeaveMeeting();
+                }}
+                className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+              >
+                Leave Meeting
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowLeaveConfirmModal(false)}
+                className="w-full py-2 text-xs text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel / Stay in Meeting
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
