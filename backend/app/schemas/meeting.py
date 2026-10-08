@@ -27,9 +27,11 @@ class MeetingCreateScheduled(BaseModel):
     @classmethod
     def validate_future_start(cls, v: datetime) -> datetime:
         v_utc = ensure_utc(v)
+        if v_utc is None:
+            raise ValueError("Meeting start time is invalid.")
         now_utc = utc_now()
         # Allow up to 2 minutes in the past for clock drift
-        if v_utc and (now_utc - v_utc).total_seconds() > 120:
+        if (now_utc - v_utc).total_seconds() > 120:
             raise ValueError("Meeting start time must be in the future.")
         return v_utc
 

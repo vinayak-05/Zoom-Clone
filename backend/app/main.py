@@ -16,10 +16,7 @@ from app.api.v1 import users, meetings, participants, ws
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Create tables and seed data on startup."""
-    import app.models.user  # noqa: F401
-    import app.models.meeting  # noqa: F401
-    import app.models.participant  # noqa: F401
-    import app.models.chat_message  # noqa: F401
+    from app.models import user as _user, meeting as _meeting, participant as _participant, chat_message as _chat_message  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     run_seed()
