@@ -10,12 +10,12 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.db.seed import run_seed
+from app.api.v1 import users, meetings, participants, ws
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Create tables and seed data on startup."""
-    # Import all models so Base.metadata knows about them
     import app.models.user  # noqa: F401
     import app.models.meeting  # noqa: F401
     import app.models.participant  # noqa: F401
@@ -35,10 +35,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS – allow the frontend origin
+    # CORS – allow frontend origin
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.FRONTEND_URL],
+        allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -49,10 +49,11 @@ def create_app() -> FastAPI:
     def health_check() -> dict[str, str]:
         return {"status": "ok"}
 
-    # Register API routers (added in later phases)
-    # from app.api.v1 import meetings, participants, users, ws
-    # application.include_router(meetings.router, prefix="/api/v1")
-    # ...
+    # Register API v1 Routers
+    application.include_router(users.router, prefix="/api/v1")
+    application.include_router(meetings.router, prefix="/api/v1")
+    application.include_router(participants.router, prefix="/api/v1")
+    application.include_router(ws.router)
 
     return application
 

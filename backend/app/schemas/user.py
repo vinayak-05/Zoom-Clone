@@ -1,12 +1,12 @@
 """Pydantic schemas for User resources."""
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict
 
 
 class UserBase(BaseModel):
     name: str
-    email: EmailStr
+    email: str
     avatar_url: str | None = None
     personal_meeting_id: str
     timezone: str = "Asia/Kolkata"
