@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { MicOff, Hand, Pin } from "lucide-react";
 import { Avatar } from "../ui/Avatar";
 import { cn } from "../../lib/utils";
@@ -36,7 +36,26 @@ export function VideoTile({
   onPin,
   isPinned = false,
 }: VideoTileProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const hasLiveVideo = Boolean(
+    stream &&
+      !isVideoOff &&
+      (stream.getVideoTracks().length === 0 || stream.getVideoTracks().some((t) => t.readyState === "live"))
+  );
+
+  const bindVideoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      videoRef.current = el;
+      if (el && stream && !isVideoOff) {
+        if (el.srcObject !== stream) {
+          el.srcObject = stream;
+        }
+        el.play().catch((err) => console.warn("Video play error:", err));
+      }
+    },
+    [stream, isVideoOff]
+  );
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -47,7 +66,6 @@ export function VideoTile({
         videoEl.srcObject = stream;
       }
       videoEl.play().catch((err) => {
-        // May fail if autoplay blocked or stream not ready yet
         console.warn("Video play error:", err);
       });
     } else {
@@ -63,21 +81,21 @@ export function VideoTile({
         className
       )}
     >
-      {/* Video Stream Element - always kept mounted so media connection is never dropped */}
+      {/* Video Stream Element */}
       <video
-        ref={videoRef}
+        ref={bindVideoRef}
         autoPlay
         playsInline
         muted={isLocal} // Always mute local element to avoid acoustic feedback
         className={cn(
           "w-full h-full object-cover",
           isLocal && "transform -scale-x-100",
-          isVideoOff || !stream ? "hidden" : "block"
+          !hasLiveVideo ? "hidden" : "block"
         )}
       />
 
       {/* Video Off Avatar State */}
-      {(isVideoOff || !stream) && (
+      {!hasLiveVideo && (
         <div className="flex flex-col items-center justify-center p-4">
           <Avatar name={displayName} size="xl" />
         </div>

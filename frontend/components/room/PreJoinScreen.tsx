@@ -43,37 +43,20 @@ export function PreJoinScreen({
 
   const stopAllPreviewTracks = useCallback(() => {
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current.getTracks().forEach((t) => {
+        try { t.stop(); } catch {}
+      });
       mediaStreamRef.current = null;
-    }
-    if (mediaStream) {
-      mediaStream.getTracks().forEach((t) => t.stop());
-      setMediaStream(null);
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  }, [mediaStream]);
-
-  // Stop hardware preview if page unloads or user navigates back
-  useEffect(() => {
-    const handleUnload = () => {
-      stopAllPreviewTracks();
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    window.addEventListener("pagehide", handleUnload);
-    window.addEventListener("popstate", handleUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      window.removeEventListener("pagehide", handleUnload);
-      window.removeEventListener("popstate", handleUnload);
-      stopAllPreviewTracks();
-    };
-  }, [stopAllPreviewTracks]);
+    setMediaStream(null);
+  }, []);
 
   // Initialize preview stream & restore sessionStorage settings
   useEffect(() => {
+    let isMounted = true;
     let initialNoAudio = false;
     let initialNoVideo = false;
 
@@ -88,39 +71,70 @@ export function PreJoinScreen({
       if (initialNoVideo) setIsVideoOff(true);
     }
 
-    let activeStream: MediaStream | null = null;
     async function initCamera() {
       try {
-        const constraints: MediaStreamConstraints = {
-          audio: true,
-          video: initialNoVideo
-            ? false
-            : { width: { ideal: 1280 }, height: { ideal: 720 } },
-        };
-        activeStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (initialNoAudio) {
-          activeStream.getAudioTracks().forEach((t) => (t.enabled = false));
+        let stream: MediaStream;
+        if (!initialNoVideo) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            });
+          } catch {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: true,
+            });
+          }
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false,
+          });
         }
-        mediaStreamRef.current = activeStream;
-        setMediaStream(activeStream);
+
+        if (!isMounted) {
+          stream.getTracks().forEach((t) => {
+            try { t.stop(); } catch {}
+          });
+          return;
+        }
+
+        if (initialNoAudio) {
+          stream.getAudioTracks().forEach((t) => (t.enabled = false));
+        }
+
+        mediaStreamRef.current = stream;
+        setMediaStream(stream);
+
         if (videoRef.current && !initialNoVideo) {
-          videoRef.current.srcObject = activeStream;
+          videoRef.current.srcObject = stream;
           videoRef.current.play().catch(() => {});
         }
       } catch (err) {
         console.warn("Could not start preview camera:", err);
-        setIsVideoOff(true);
+        if (isMounted) setIsVideoOff(true);
       }
     }
+
     initCamera();
 
-    return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach((t) => t.stop());
-      }
+    const handleUnload = () => {
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current.getTracks().forEach((t) => {
+          try { t.stop(); } catch {}
+        });
+        mediaStreamRef.current = null;
       }
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
+      handleUnload();
     };
   }, []);
 
@@ -159,9 +173,16 @@ export function PreJoinScreen({
     } else {
       // Turn video ON: request camera stream and attach
       try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
+        let videoStream: MediaStream;
+        try {
+          videoStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          });
+        } catch {
+          videoStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+          });
+        }
         const track = videoStream.getVideoTracks()[0];
         if (track) {
           let updatedStream: MediaStream;

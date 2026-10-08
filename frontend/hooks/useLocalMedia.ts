@@ -49,7 +49,20 @@ export function useLocalMedia(options: LocalMediaOptions = {}) {
             : false,
         };
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (constraintErr) {
+          if (videoRequested) {
+            // Fallback to basic constraints if strict ideal resolution was rejected by device
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: true,
+            });
+          } else {
+            throw constraintErr;
+          }
+        }
 
         // Apply audio mute state
         stream.getAudioTracks().forEach((track) => {
@@ -113,13 +126,21 @@ export function useLocalMedia(options: LocalMediaOptions = {}) {
     } else {
       // 2. Turning video ON: Request camera device so webcam starts and LED turns on
       try {
-        const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: "user",
-          },
-        });
+        let cameraStream: MediaStream;
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "user",
+            },
+          });
+        } catch {
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+          });
+        }
+
         const newVideoTrack = cameraStream.getVideoTracks()[0];
         if (newVideoTrack) {
           const currentAudioTracks = localStreamRef.current
@@ -188,22 +209,34 @@ export function useLocalMedia(options: LocalMediaOptions = {}) {
   const stopAllTracks = useCallback(() => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => {
-        t.stop();
+        try {
+          t.stop();
+        } catch {}
       });
       localStreamRef.current = null;
     }
-    if (localStream) {
-      localStream.getTracks().forEach((t) => {
-        t.stop();
-      });
-    }
     setLocalStream(null);
     stopScreenShare();
-  }, [localStream, stopScreenShare]);
+  }, [stopScreenShare]);
 
   useEffect(() => {
     const handleUnload = () => {
-      stopAllTracks();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {}
+        });
+        localStreamRef.current = null;
+      }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {}
+        });
+        screenStreamRef.current = null;
+      }
     };
     window.addEventListener("beforeunload", handleUnload);
     window.addEventListener("pagehide", handleUnload);
@@ -211,9 +244,9 @@ export function useLocalMedia(options: LocalMediaOptions = {}) {
     return () => {
       window.removeEventListener("beforeunload", handleUnload);
       window.removeEventListener("pagehide", handleUnload);
-      stopAllTracks();
+      handleUnload();
     };
-  }, [stopAllTracks]);
+  }, []);
 
   return {
     localStream,
