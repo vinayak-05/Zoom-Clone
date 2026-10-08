@@ -143,7 +143,7 @@ async def meeting_websocket_endpoint(
             # 5. Real-time Chat
             elif msg_type == "chat_message":
                 data["participant_id"] = participant_id
-                await manager.broadcast(code, data)
+                await manager.broadcast(code, data, exclude_participant_id=participant_id)
 
             # 6. Reactions
             elif msg_type == "reaction":

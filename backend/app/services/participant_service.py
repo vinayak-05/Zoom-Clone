@@ -62,6 +62,25 @@ class ParticipantService:
         is_host = (data.user_id is not None and data.user_id == meeting.host_id)
         role = ParticipantRole.HOST.value if is_host else ParticipantRole.PARTICIPANT.value
 
+        # Reuse existing active session if user already joined this meeting
+        if data.user_id is not None:
+            existing = ParticipantRepository.get_active_by_user(db, meeting.id, data.user_id)
+            if existing:
+                existing.display_name = data.display_name.strip()
+                existing.is_muted = data.is_muted
+                existing.is_video_off = data.is_video_off
+                existing.role = role
+                db.commit()
+                db.refresh(existing)
+                ParticipantRepository.cleanup_duplicate_user_sessions(db, meeting.id, data.user_id, existing.id)
+                return ParticipantJoinResponse(
+                    participant=ParticipantRead.model_validate(existing),
+                    meeting_id=meeting.id,
+                    meeting_code=meeting.meeting_code,
+                    title=meeting.title,
+                    is_host=is_host,
+                )
+
         # Create new join session row
         participant = Participant(
             meeting_id=meeting.id,

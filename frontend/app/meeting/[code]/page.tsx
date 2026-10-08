@@ -127,11 +127,20 @@ export default function MeetingRoomPage() {
   const currentParticipantId = joinData?.participant?.id || null;
 
   const handleRemoteChatMessage = useCallback((msg: ChatMessage) => {
-    setChatMessages((prev) => [...prev, msg]);
+    // Prevent duplicate messages if the message is from current participant
+    if (currentParticipantId && msg.participant_id === currentParticipantId) {
+      return;
+    }
+    setChatMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id || (m.content === msg.content && m.participant_id === msg.participant_id))) {
+        return prev;
+      }
+      return [...prev, msg];
+    });
     if (!isChatOpen) {
       setUnreadChatCount((prev) => prev + 1);
     }
-  }, [isChatOpen]);
+  }, [currentParticipantId, isChatOpen]);
 
   const handleMutedByHost = useCallback(() => {
     if (!isAudioMuted) {
@@ -317,7 +326,10 @@ export default function MeetingRoomPage() {
       });
       // Broadcast via socket to others
       socketSendChat(content, joinData.participant.display_name);
-      setChatMessages((prev) => [...prev, sent]);
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === sent.id)) return prev;
+        return [...prev, sent];
+      });
     } catch (err) {
       showToast("Failed to send message.", "error");
     }
@@ -411,8 +423,17 @@ export default function MeetingRoomPage() {
   };
 
   // Filter out self from server participants list
+  const currentParticipant = joinData?.participant;
   const remoteTiles: ParticipantTileData[] = participants
-    .filter((p) => p.id !== joinData?.participant?.id)
+    .filter((p) => {
+      // Exclude self by participant ID
+      if (currentParticipant?.id && p.id === currentParticipant.id) return false;
+      // Exclude self by user ID if authenticated user
+      if (currentParticipant?.user_id && p.user_id && p.user_id === currentParticipant.user_id) return false;
+      // Exclude duplicate host tile if user is host with same display name
+      if (isHost && p.role === "host" && p.display_name === currentParticipant?.display_name) return false;
+      return true;
+    })
     .map((p) => ({
       id: p.id,
       displayName: p.display_name,

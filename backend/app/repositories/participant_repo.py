@@ -22,7 +22,7 @@ class ParticipantRepository:
 
     @staticmethod
     def get_active_participants(db: Session, meeting_id: int) -> list[Participant]:
-        """Fetch all currently active participants in a meeting."""
+        """Fetch all currently active participants in a meeting, automatically deduplicating multiple sessions per user."""
         stmt = (
             select(Participant)
             .where(
@@ -32,7 +32,24 @@ class ParticipantRepository:
             )
             .order_by(Participant.joined_at.asc())
         )
-        return list(db.scalars(stmt).all())
+        all_active = list(db.scalars(stmt).all())
+        seen_users = set()
+        deduped = []
+        needs_commit = False
+        now = datetime.now(timezone.utc)
+        # Iterate in reverse to keep the latest session for any registered user
+        for p in reversed(all_active):
+            if p.user_id is not None:
+                if p.user_id in seen_users:
+                    # Mark older duplicate session as left
+                    p.left_at = now
+                    needs_commit = True
+                    continue
+                seen_users.add(p.user_id)
+            deduped.append(p)
+        if needs_commit:
+            db.commit()
+        return list(reversed(deduped))
 
     @staticmethod
     def get_all_by_meeting(db: Session, meeting_id: int) -> list[Participant]:
@@ -53,8 +70,25 @@ class ParticipantRepository:
                 Participant.left_at.is_(None),
                 Participant.is_removed.is_(False),
             )
+            .order_by(Participant.joined_at.desc())
         )
         return db.scalars(stmt).first()
+
+    @staticmethod
+    def cleanup_duplicate_user_sessions(db: Session, meeting_id: int, user_id: int, keep_id: int) -> None:
+        """Mark all other active sessions for this user in this meeting as left."""
+        stmt = (
+            update(Participant)
+            .where(
+                Participant.meeting_id == meeting_id,
+                Participant.user_id == user_id,
+                Participant.id != keep_id,
+                Participant.left_at.is_(None),
+            )
+            .values(left_at=datetime.now(timezone.utc))
+        )
+        db.execute(stmt)
+        db.commit()
 
     @staticmethod
     def mark_left(db: Session, participant: Participant) -> Participant:
