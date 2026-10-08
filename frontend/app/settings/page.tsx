@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "../../components/layout/Navbar";
 import { useToast } from "../../components/ui/Toast";
-import { API_BASE_URL } from "../../lib/constants";
+import { API_BASE_URL, getApiBaseUrl } from "../../lib/constants";
 
 interface SettingItem {
   id: string;
@@ -203,8 +203,10 @@ function SettingsContent() {
   // Fetch settings from backend on mount
   useEffect(() => {
     async function fetchSettings() {
+      const base = getApiBaseUrl();
+      if (!base) return;
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/settings`);
+        const res = await fetch(`${base}/api/v1/settings`);
         if (res.ok) {
           const backendData = await res.json();
           setSettingsState((prev) => ({ ...prev, ...backendData }));
@@ -220,8 +222,14 @@ function SettingsContent() {
     const updated = !settingsState[id];
     setSettingsState((prev) => ({ ...prev, [id]: updated }));
 
+    const base = getApiBaseUrl();
+    if (!base) {
+      showToast(`${title} updated locally`, "info");
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/settings`, {
+      const res = await fetch(`${base}/api/v1/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: id, value: updated }),
@@ -245,8 +253,23 @@ function SettingsContent() {
     setChatInput("");
     setIsAiTyping(true);
 
+    const base = getApiBaseUrl();
+    if (!base) {
+      setTimeout(() => {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            sender: "assistant",
+            text: "I've noted your question. All your Zoom settings and preferences are currently saved locally.",
+          },
+        ]);
+        setIsAiTyping(false);
+      }, 500);
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/assistant/chat`, {
+      const res = await fetch(`${base}/api/v1/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

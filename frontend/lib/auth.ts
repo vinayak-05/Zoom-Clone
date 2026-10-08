@@ -2,7 +2,7 @@
  * Client-side authentication helpers, email validation, and OAuth simulation.
  */
 
-import { API_BASE_URL, DEFAULT_USER } from "./constants";
+import { API_BASE_URL, getApiBaseUrl, DEFAULT_USER } from "./constants";
 
 export interface AuthUser {
   id: number;
@@ -107,7 +107,7 @@ export function setStoredUser(user: AuthUser, token?: string): void {
 }
 
 async function safeAuthFetch(endpoint: string, data: any): Promise<any | null> {
-  const base = API_BASE_URL;
+  const base = getApiBaseUrl();
   if (!base) return null;
 
   // Prevent browser blocking HTTPS page calling plain HTTP endpoint
@@ -333,7 +333,7 @@ export async function loginWithOAuth(
 }
 
 export async function logoutUser(): Promise<void> {
-  const base = API_BASE_URL;
+  const base = getApiBaseUrl();
   if (base) {
     try {
       const controller = new AbortController();

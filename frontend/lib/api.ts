@@ -3,7 +3,7 @@
  * Handles base URL, headers, JSON serialization, and structured error throwing.
  */
 
-import { API_BASE_URL } from "./constants";
+import { API_BASE_URL, getApiBaseUrl } from "./constants";
 import { getStoredUser } from "./auth";
 import type {
   User,
@@ -110,14 +110,11 @@ function saveLocalMeeting(meeting: Meeting): void {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  let primaryBase = API_BASE_URL;
-  if (typeof window !== "undefined" && primaryBase.includes("localhost:8000")) {
-    primaryBase = "http://127.0.0.1:8000";
-  }
+  const primaryBase = getApiBaseUrl();
 
-  // Avoid browser mixed-content blocks
-  if (typeof window !== "undefined" && window.location.protocol === "https:" && primaryBase.startsWith("http://")) {
-    primaryBase = "";
+  // If no backend is configured or accessible on remote deployment, directly throw to trigger local fallback
+  if (!primaryBase) {
+    throw new ApiError("No remote backend configured; using local storage fallback", 404);
   }
 
   const url = `${primaryBase}${endpoint}`;

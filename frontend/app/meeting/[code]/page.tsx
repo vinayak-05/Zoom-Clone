@@ -45,7 +45,7 @@ import { useMeetingSocket } from "../../../hooks/useMeetingSocket";
 import { useWebRTC } from "../../../hooks/useWebRTC";
 import { api } from "../../../lib/api";
 import { formatMeetingCode, formatTime, getInitials, getAvatarHexColor } from "../../../lib/utils";
-import { DEFAULT_USER, API_BASE_URL } from "../../../lib/constants";
+import { DEFAULT_USER, API_BASE_URL, getApiBaseUrl } from "../../../lib/constants";
 import { useToast } from "../../../components/ui/Toast";
 import type {
   MeetingValidationResponse,
@@ -157,9 +157,12 @@ export default function MeetingRoomPage() {
       e.returnValue = "";
       stopAllTracks();
       if (joinData?.participant?.id) {
-        navigator.sendBeacon?.(
-          `${API_BASE_URL}/api/v1/meetings/code/${codeParam}/leave?participant_id=${joinData.participant.id}`
-        );
+        const base = getApiBaseUrl();
+        if (base) {
+          navigator.sendBeacon?.(
+            `${base}/api/v1/meetings/code/${codeParam}/leave?participant_id=${joinData.participant.id}`
+          );
+        }
       }
     };
 
