@@ -39,14 +39,21 @@ export function VideoTile({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current) {
-      if (stream) {
-        videoRef.current.srcObject = stream;
-      } else {
-        videoRef.current.srcObject = null;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    if (stream && !isVideoOff) {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
       }
+      videoEl.play().catch((err) => {
+        // May fail if autoplay blocked or stream not ready yet
+        console.warn("Video play error:", err);
+      });
+    } else {
+      videoEl.srcObject = null;
     }
-  }, [stream]);
+  }, [stream, isVideoOff]);
 
   return (
     <div
@@ -56,20 +63,21 @@ export function VideoTile({
         className
       )}
     >
-      {/* Video Stream Element */}
-      {stream && !isVideoOff ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal} // Always mute local element to avoid acoustic feedback
-          className={cn(
-            "w-full h-full object-cover",
-            isLocal && "transform -scale-x-100"
-          )}
-        />
-      ) : (
-        /* Video Off Avatar State */
+      {/* Video Stream Element - always kept mounted so media connection is never dropped */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal} // Always mute local element to avoid acoustic feedback
+        className={cn(
+          "w-full h-full object-cover",
+          isLocal && "transform -scale-x-100",
+          isVideoOff || !stream ? "hidden" : "block"
+        )}
+      />
+
+      {/* Video Off Avatar State */}
+      {(isVideoOff || !stream) && (
         <div className="flex flex-col items-center justify-center p-4">
           <Avatar name={displayName} size="xl" />
         </div>

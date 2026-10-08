@@ -202,8 +202,11 @@ export default function MeetingRoomPage() {
   }) => {
     setIsJoining(true);
     try {
-      // Initialize actual stream in room
-      await startMedia();
+      // Initialize actual stream in room respecting user's pre-join selections
+      await startMedia({
+        audio: !settings.isMuted,
+        video: !settings.isVideoOff,
+      });
 
       // Check if user is host Vinayak
       const isHostUser = settings.displayName === DEFAULT_USER.name;
@@ -554,8 +557,30 @@ export default function MeetingRoomPage() {
         isParticipantsOpen={isParticipantsOpen}
         isChatOpen={isChatOpen}
         isHost={isHost}
-        onToggleAudio={toggleAudio}
-        onToggleVideo={toggleVideo}
+        onToggleAudio={async () => {
+          const isAudioActive = toggleAudio();
+          if (joinData?.participant?.id) {
+            try {
+              await api.updateParticipantFlags(joinData.participant.id, {
+                is_muted: !isAudioActive,
+              });
+            } catch (e) {
+              console.warn("Failed to sync mute flag:", e);
+            }
+          }
+        }}
+        onToggleVideo={async () => {
+          const isVideoActive = await toggleVideo();
+          if (joinData?.participant?.id) {
+            try {
+              await api.updateParticipantFlags(joinData.participant.id, {
+                is_video_off: !isVideoActive,
+              });
+            } catch (e) {
+              console.warn("Failed to sync video flag:", e);
+            }
+          }
+        }}
         onToggleScreenShare={toggleScreenShare}
         onToggleHandRaise={handleToggleHandRaise}
         onToggleParticipants={() => {

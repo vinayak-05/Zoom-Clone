@@ -37,20 +37,43 @@ export function PreJoinScreen({
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Initialize preview stream
+  // Initialize preview stream & restore sessionStorage settings
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    let initialNoAudio = false;
+    let initialNoVideo = false;
+
+    if (typeof window !== "undefined") {
+      const storedName = sessionStorage.getItem("zoom_displayName");
+      if (storedName) setDisplayName(storedName);
+      const storedPasscode = sessionStorage.getItem("zoom_passcode");
+      if (storedPasscode) setPasscode(storedPasscode);
+      initialNoAudio = sessionStorage.getItem("zoom_noAudio") === "1";
+      initialNoVideo = sessionStorage.getItem("zoom_noVideo") === "1";
+      if (initialNoAudio) setIsMuted(true);
+      if (initialNoVideo) setIsVideoOff(true);
+    }
+
+    let activeStream: MediaStream | null = null;
     async function initCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        const constraints: MediaStreamConstraints = {
           audio: true,
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        setMediaStream(stream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+          video: initialNoVideo
+            ? false
+            : { width: { ideal: 1280 }, height: { ideal: 720 } },
+        };
+        activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (initialNoAudio) {
+          activeStream.getAudioTracks().forEach((t) => (t.enabled = false));
+        }
+        mediaStreamRef.current = activeStream;
+        setMediaStream(activeStream);
+        if (videoRef.current && !initialNoVideo) {
+          videoRef.current.srcObject = activeStream;
+          videoRef.current.play().catch(() => {});
         }
       } catch (err) {
         console.warn("Could not start preview camera:", err);
@@ -60,34 +83,91 @@ export function PreJoinScreen({
     initCamera();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
+      if (activeStream) {
+        activeStream.getTracks().forEach((t) => t.stop());
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
   }, []);
 
+  // Keep preview video element synced with stream whenever video is enabled
+  useEffect(() => {
+    if (videoRef.current && mediaStream && !isVideoOff) {
+      if (videoRef.current.srcObject !== mediaStream) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      videoRef.current.play().catch(() => {});
+    }
+  }, [mediaStream, isVideoOff]);
+
   // Update track states when toggled
   const handleToggleAudio = () => {
-    if (mediaStream) {
-      mediaStream.getAudioTracks().forEach((t) => (t.enabled = isMuted));
+    const nextState = !isMuted;
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = !nextState));
     }
-    setIsMuted(!isMuted);
+    setIsMuted(nextState);
   };
 
-  const handleToggleVideo = () => {
-    if (mediaStream) {
-      mediaStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
+  const handleToggleVideo = async () => {
+    if (!isVideoOff) {
+      // Turn video OFF: stop physical tracks so camera LED turns OFF completely
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getVideoTracks().forEach((t) => {
+          t.stop();
+          mediaStreamRef.current?.removeTrack(t);
+        });
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setIsVideoOff(true);
+    } else {
+      // Turn video ON: request camera stream and attach
+      try {
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+        const track = videoStream.getVideoTracks()[0];
+        if (track) {
+          let updatedStream: MediaStream;
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.addTrack(track);
+            updatedStream = new MediaStream([
+              ...mediaStreamRef.current.getAudioTracks(),
+              track,
+            ]);
+          } else {
+            updatedStream = new MediaStream([track]);
+          }
+          mediaStreamRef.current = updatedStream;
+          setMediaStream(updatedStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = updatedStream;
+            videoRef.current.play().catch(() => {});
+          }
+        }
+        setIsVideoOff(false);
+      } catch (err) {
+        console.warn("Could not start preview video:", err);
+      }
     }
-    setIsVideoOff(!isVideoOff);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName.trim()) return;
 
-    // Stop preview stream before entering room (room will initialize its own stream)
+    // Stop preview stream completely before entering room to release camera hardware
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
     if (mediaStream) {
       mediaStream.getTracks().forEach((t) => t.stop());
+      setMediaStream(null);
     }
 
     onJoin({
