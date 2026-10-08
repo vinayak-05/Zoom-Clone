@@ -4,6 +4,8 @@ module.exports = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
+    "./hooks/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -13,6 +15,8 @@ module.exports = {
           "blue-hover": "#0845BF",
           orange: "#FF742E",
           "orange-hover": "#E56322",
+          rust: "#C43D1A",
+          "rust-hover": "#A83416",
           text: "#232333",
           muted: "#747487",
           border: "#E4E4EB",

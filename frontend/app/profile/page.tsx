@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -25,14 +25,25 @@ import { Navbar } from "../../components/layout/Navbar";
 import { Avatar } from "../../components/ui/Avatar";
 import { DEFAULT_USER } from "../../lib/constants";
 import { useToast } from "../../components/ui/Toast";
+import { getStoredUser, setStoredUser, AuthUser } from "../../lib/auth";
 
 export default function ProfilePage() {
   const { showToast } = useToast();
+  const [currentUser, setCurrentUser] = useState<AuthUser>(DEFAULT_USER as AuthUser);
   const [isAccountOpen, setIsAccountOpen] = useState(true);
   const [showHostKey, setShowHostKey] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [userName, setUserName] = useState(DEFAULT_USER.name);
   const [tempName, setTempName] = useState(DEFAULT_USER.name);
+
+  useEffect(() => {
+    const stored = getStoredUser();
+    if (stored) {
+      setCurrentUser(stored);
+      setUserName(stored.name);
+      setTempName(stored.name);
+    }
+  }, []);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -42,7 +53,10 @@ export default function ProfilePage() {
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempName.trim()) return;
+    const updated = { ...currentUser, name: tempName.trim() };
+    setCurrentUser(updated);
     setUserName(tempName.trim());
+    setStoredUser(updated);
     setIsEditingName(false);
     showToast("Profile name updated successfully", "success");
   };
@@ -171,10 +185,10 @@ export default function ProfilePage() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5">{DEFAULT_USER.email}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{currentUser.email}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0B5CFF]">
-                    {DEFAULT_USER.plan} Account
+                    {currentUser.plan || "Basic"} Account
                   </span>
                   <span className="text-xs text-gray-400">•</span>
                   <span className="text-xs text-gray-500">Capacity: 100 participants</span>
@@ -243,13 +257,13 @@ export default function ProfilePage() {
 
               <div>
                 <p className="text-xs text-gray-500 font-medium">Sign-In Email</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{DEFAULT_USER.email}</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{currentUser.email}</p>
               </div>
 
               <div>
                 <p className="text-xs text-gray-500 font-medium">Account Number</p>
                 <p className="text-sm font-mono font-semibold text-gray-900 mt-1">
-                  {DEFAULT_USER.account_no}
+                  {currentUser.account_no || "109823411"}
                 </p>
               </div>
 
@@ -272,21 +286,21 @@ export default function ProfilePage() {
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Personal Meeting ID (PMI)</p>
                   <p className="text-base font-bold font-mono text-gray-900 mt-0.5">
-                    {DEFAULT_USER.personal_meeting_id.slice(0, 3)}{" "}
-                    {DEFAULT_USER.personal_meeting_id.slice(3, 7)}{" "}
-                    {DEFAULT_USER.personal_meeting_id.slice(7)}
+                    {(currentUser.personal_meeting_id || "5001234567").slice(0, 3)}{" "}
+                    {(currentUser.personal_meeting_id || "5001234567").slice(3, 7)}{" "}
+                    {(currentUser.personal_meeting_id || "5001234567").slice(7)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleCopy(DEFAULT_USER.personal_meeting_id, "PMI")}
+                    onClick={() => handleCopy(currentUser.personal_meeting_id || "5001234567", "PMI")}
                     className="text-xs text-[#0B5CFF] hover:underline font-semibold flex items-center gap-1"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     Copy ID
                   </button>
                   <Link
-                    href={`/meeting/${DEFAULT_USER.personal_meeting_id}`}
+                    href={`/meeting/${currentUser.personal_meeting_id || "5001234567"}`}
                     className="text-xs bg-blue-50 text-[#0B5CFF] hover:bg-blue-100 font-semibold px-3 py-1.5 rounded-full transition-colors"
                   >
                     Start Room
@@ -299,13 +313,13 @@ export default function ProfilePage() {
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Personal Meeting URL</p>
                   <p className="text-xs font-mono text-gray-800 mt-0.5 break-all">
-                    http://localhost:3000/join/{DEFAULT_USER.personal_meeting_id}
+                    http://localhost:3000/join/{currentUser.personal_meeting_id || "5001234567"}
                   </p>
                 </div>
                 <button
                   onClick={() =>
                     handleCopy(
-                      `http://localhost:3000/join/${DEFAULT_USER.personal_meeting_id}`,
+                      `http://localhost:3000/join/${currentUser.personal_meeting_id || "5001234567"}`,
                       "Meeting link"
                     )
                   }

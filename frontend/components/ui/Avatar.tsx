@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { cn, getInitials, getAvatarColor } from "../../lib/utils";
+import React, { useState } from "react";
+import { cn, getInitials, getAvatarHexColor } from "../../lib/utils";
 
 interface AvatarProps {
   name: string;
@@ -20,6 +20,8 @@ export function Avatar({
   isOnline,
   bgColor,
 }: AvatarProps) {
+  const [imageError, setImageError] = useState(false);
+
   const sizeMap = {
     xs: "w-6 h-6 text-xs",
     sm: "w-8 h-8 text-sm",
@@ -36,15 +38,16 @@ export function Avatar({
     xl: "w-4 h-4 bottom-1 right-1",
   };
 
-  const initials = getInitials(name);
-  const colorClass = bgColor || getAvatarColor(name);
+  const initials = getInitials(name || "Guest");
+  const hexColor = bgColor || getAvatarHexColor(name || "Guest");
 
   return (
     <div className={cn("relative inline-block select-none", className)}>
-      {src ? (
+      {src && !imageError ? (
         <img
           src={src}
           alt={name}
+          onError={() => setImageError(true)}
           className={cn(
             "rounded-full object-cover",
             sizeMap[size]
@@ -52,9 +55,9 @@ export function Avatar({
         />
       ) : (
         <div
+          style={{ backgroundColor: hexColor }}
           className={cn(
-            "rounded-full flex items-center justify-center font-bold text-white shadow-sm",
-            colorClass,
+            "rounded-full flex items-center justify-center font-bold text-white shadow-sm ring-1 ring-black/5",
             sizeMap[size]
           )}
         >

@@ -9,6 +9,18 @@ export const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
 export const DEFAULT_USER = {
+  id: 0,
+  name: "Guest",
+  email: "guest@zoomclone.local",
+  avatar_url: null,
+  personal_meeting_id: "5001234567",
+  timezone: "Asia/Kolkata",
+  account_no: "000000000",
+  plan: "Free",
+  is_guest: true,
+};
+
+export const VINAYAK_USER = {
   id: 1,
   name: "Vinayak",
   email: "vinayak@zoomclone.com",
@@ -17,6 +29,7 @@ export const DEFAULT_USER = {
   timezone: "Asia/Kolkata",
   account_no: "109823411",
   plan: "Basic",
+  is_guest: false,
 };
 
 export const COMMON_TIMEZONES = [

@@ -81,11 +81,40 @@ const AVATAR_COLORS = [
   "bg-rose-600",
 ];
 
+export function getAvatarHexColor(name: string): string {
+  if (!name) return "#C43D1A";
+  const lower = name.toLowerCase().trim();
+  if (lower.includes("vinayak") || lower.startsWith("v")) {
+    return "#C43D1A"; // Signature Zoom burnt orange
+  }
+  if (lower.includes("guest") || lower === "g") {
+    return "#4F46E5"; // Indigo for Guest
+  }
+  const HEX_PALETTE = [
+    "#C43D1A", // Burnt orange
+    "#0B5CFF", // Zoom blue
+    "#059669", // Emerald
+    "#7C3AED", // Violet
+    "#D97706", // Amber
+    "#0D9488", // Teal
+    "#E11D48", // Rose
+    "#2563EB", // Blue
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % HEX_PALETTE.length;
+  return HEX_PALETTE[idx];
+}
+
 export function getAvatarColor(name: string): string {
   if (!name) return "bg-[#C43D1A]";
-  // Match Vinayak or single-V to signature Zoom burnt orange
   if (name.toLowerCase().includes("vinayak") || name.trim().toUpperCase() === "V") {
     return "bg-[#C43D1A]";
+  }
+  if (name.toLowerCase().includes("guest")) {
+    return "bg-indigo-600";
   }
   let hash = 0;
   for (let i = 0; i < name.length; i++) {

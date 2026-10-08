@@ -276,7 +276,16 @@ export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) 
             </Link>
           </div>
 
-          {/* Profile Avatar Dropdown (Orange Circle with White "V") */}
+          {currentUser.is_guest && (
+            <Link
+              href="/signin"
+              className="hidden sm:inline-flex items-center px-3 py-1 text-xs font-semibold text-white bg-[#0B5CFF] hover:bg-[#0845BF] rounded-full transition-colors shadow-xs"
+            >
+              Sign In
+            </Link>
+          )}
+
+          {/* Profile Avatar Dropdown */}
           <div className="relative ml-1" ref={profileRef}>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -314,36 +323,56 @@ export function Navbar({ onOpenJoinModal, onStartInstantMeeting }: NavbarProps) 
                   </div>
                 </div>
 
-                {/* Upgrade Pro Banner */}
-                <div className="p-3 border-b border-[#E4E4EB] bg-gradient-to-r from-blue-50/60 to-cyan-50/60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-900">Upgrade to Pro</p>
-                      <p className="text-[11px] text-gray-500">Host unlimited 30hr meetings</p>
+                {currentUser.is_guest ? (
+                  <div className="p-3 bg-blue-50/70 border-b border-[#E4E4EB]">
+                    <p className="text-xs text-gray-700 font-medium">Currently using Guest mode</p>
+                    <div className="mt-2 flex gap-2">
+                      <Link
+                        href="/signin"
+                        className="flex-1 py-1.5 text-center text-xs font-semibold text-white bg-[#0B5CFF] hover:bg-[#0845BF] rounded-lg transition-colors"
+                      >
+                        Sign In
+                      </Link>
+                      <Link
+                        href="/signup"
+                        className="flex-1 py-1.5 text-center text-xs font-semibold text-[#0B5CFF] border border-[#0B5CFF] hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        Sign Up
+                      </Link>
                     </div>
-                    <button
-                      onClick={() => showToast("Upgrade to Pro checkout opened", "info")}
-                      className="px-2.5 py-1 text-xs font-semibold text-white bg-[#0B5CFF] hover:bg-[#0845BF] rounded-full transition-colors flex items-center gap-1"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      Upgrade
-                    </button>
                   </div>
-                </div>
+                ) : (
+                  /* Upgrade Pro Banner */
+                  <div className="p-3 border-b border-[#E4E4EB] bg-gradient-to-r from-blue-50/60 to-cyan-50/60">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-900">Upgrade to Pro</p>
+                        <p className="text-[11px] text-gray-500">Host unlimited 30hr meetings</p>
+                      </div>
+                      <button
+                        onClick={() => showToast("Upgrade to Pro checkout opened", "info")}
+                        className="px-2.5 py-1 text-xs font-semibold text-white bg-[#0B5CFF] hover:bg-[#0845BF] rounded-full transition-colors flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Upgrade
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* PMI Info */}
                 <div className="px-4 py-2.5 text-xs text-gray-500 border-b border-[#E4E4EB]">
                   <span className="block font-medium">Personal Meeting ID (PMI)</span>
                   <div className="flex items-center justify-between mt-0.5">
                     <span className="text-sm font-bold text-[#1C1C28] font-mono">
-                      {DEFAULT_USER.personal_meeting_id.slice(0, 3)}{" "}
-                      {DEFAULT_USER.personal_meeting_id.slice(3, 7)}{" "}
-                      {DEFAULT_USER.personal_meeting_id.slice(7)}
+                      {(currentUser.personal_meeting_id || "5001234567").slice(0, 3)}{" "}
+                      {(currentUser.personal_meeting_id || "5001234567").slice(3, 7)}{" "}
+                      {(currentUser.personal_meeting_id || "5001234567").slice(7)}
                     </span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigator.clipboard.writeText(DEFAULT_USER.personal_meeting_id);
+                        navigator.clipboard.writeText(currentUser.personal_meeting_id || "5001234567");
                         showToast("PMI copied to clipboard", "success");
                       }}
                       className="text-[11px] text-[#0B5CFF] hover:underline font-medium"
