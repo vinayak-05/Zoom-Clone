@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
+import { ToastProvider } from "../components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "Zoom Web App Clone",
@@ -17,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-zoom-bg text-zoom-text antialiased">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
