@@ -35,6 +35,9 @@ export default function ProfilePage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [userName, setUserName] = useState(DEFAULT_USER.name);
   const [tempName, setTempName] = useState(DEFAULT_USER.name);
+  const [isEditingPasscode, setIsEditingPasscode] = useState(false);
+  const [pmiPasscode, setPmiPasscode] = useState("123456");
+  const [tempPasscode, setTempPasscode] = useState("123456");
 
   useEffect(() => {
     const stored = getStoredUser();
@@ -42,6 +45,11 @@ export default function ProfilePage() {
       setCurrentUser(stored);
       setUserName(stored.name);
       setTempName(stored.name);
+    }
+    const storedPasscode = localStorage.getItem("zoom_pmi_passcode");
+    if (storedPasscode) {
+      setPmiPasscode(storedPasscode);
+      setTempPasscode(storedPasscode);
     }
   }, []);
 
@@ -306,6 +314,60 @@ export default function ProfilePage() {
                     Start Room
                   </Link>
                 </div>
+              </div>
+
+              {/* Personal Meeting Passcode */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#F0F2F6]">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Personal Meeting Passcode</p>
+                  {isEditingPasscode ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={tempPasscode}
+                        onChange={(e) => setTempPasscode(e.target.value)}
+                        className="text-xs font-mono border border-gray-300 rounded-lg px-2.5 py-1 w-32 uppercase focus:outline-none focus:border-[#0B5CFF]"
+                        maxLength={10}
+                      />
+                      <button
+                        onClick={() => {
+                          setPmiPasscode(tempPasscode.trim().toUpperCase() || "123456");
+                          localStorage.setItem("zoom_pmi_passcode", tempPasscode.trim().toUpperCase() || "123456");
+                          setIsEditingPasscode(false);
+                          showToast("PMI Passcode updated successfully", "success");
+                        }}
+                        className="text-xs bg-[#0B5CFF] hover:bg-[#0845BF] text-white px-3 py-1 rounded-lg font-semibold transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTempPasscode(pmiPasscode);
+                          setIsEditingPasscode(false);
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-mono font-semibold text-gray-900 mt-0.5">
+                      {pmiPasscode}
+                    </p>
+                  )}
+                </div>
+                {!isEditingPasscode && (
+                  <button
+                    onClick={() => {
+                      setTempPasscode(pmiPasscode);
+                      setIsEditingPasscode(true);
+                    }}
+                    className="text-xs text-[#0B5CFF] hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                )}
               </div>
 
               {/* Personal Link */}
