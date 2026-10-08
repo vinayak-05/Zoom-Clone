@@ -47,6 +47,7 @@ def create_app() -> FastAPI:
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://[::1]:3000",
+            "https://zoom-clone-test.netlify.app",
         ],
         allow_origin_regex=r"^https?://.*$",
         allow_credentials=True,

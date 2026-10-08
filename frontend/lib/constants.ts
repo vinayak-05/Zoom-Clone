@@ -5,10 +5,21 @@
 export const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host !== "localhost" && host !== "127.0.0.1") {
-      return `${window.location.protocol}//${host}:8000`;
+    try {
+      const custom = localStorage.getItem("zoom_custom_backend_url");
+      if (custom) return custom;
+    } catch {
+      // Storage unavailable
     }
+    const host = window.location.hostname;
+    const isLocalIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
+    if (isLocalIp && host !== "127.0.0.1") {
+      return `http://${host}:8000`;
+    }
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://127.0.0.1:8000";
+    }
+    return "";
   }
   return "http://127.0.0.1:8000";
 };
@@ -16,11 +27,22 @@ export const getApiBaseUrl = (): string => {
 export const getWsBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   if (typeof window !== "undefined") {
+    try {
+      const custom = localStorage.getItem("zoom_custom_ws_url");
+      if (custom) return custom;
+    } catch {
+      // Storage unavailable
+    }
     const host = window.location.hostname;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    if (host !== "localhost" && host !== "127.0.0.1") {
-      return `${protocol}//${host}:8000`;
+    const isLocalIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
+    if (isLocalIp && host !== "127.0.0.1") {
+      return `ws://${host}:8000`;
     }
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "ws://127.0.0.1:8000";
+    }
+    return `${protocol}//${host}`;
   }
   return "ws://127.0.0.1:8000";
 };
