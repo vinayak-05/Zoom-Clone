@@ -54,8 +54,12 @@ export const getApiBaseUrl = (): string => {
 export const getWsBaseUrl = (): string => {
   if (typeof window !== "undefined") {
     try {
-      const custom = localStorage.getItem("zoom_custom_ws_url");
-      if (custom) return custom;
+      const customWs = localStorage.getItem("zoom_custom_ws_url");
+      if (customWs) return customWs;
+      const customApi = localStorage.getItem("zoom_custom_backend_url");
+      if (customApi) {
+        return customApi.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+      }
     } catch {
       // Storage unavailable
     }
@@ -75,6 +79,11 @@ export const getWsBaseUrl = (): string => {
       }
     }
 
+    const envApi = process.env.NEXT_PUBLIC_API_URL;
+    if (envApi && !envApi.includes("127.0.0.1") && !envApi.includes("localhost")) {
+      return envApi.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+    }
+
     if (isLocalhost) {
       return "ws://127.0.0.1:8000";
     }
@@ -89,6 +98,10 @@ export const getWsBaseUrl = (): string => {
   const envWs = process.env.NEXT_PUBLIC_WS_URL;
   if (envWs && !envWs.includes("127.0.0.1") && !envWs.includes("localhost")) {
     return envWs;
+  }
+  const envApi = process.env.NEXT_PUBLIC_API_URL;
+  if (envApi && !envApi.includes("127.0.0.1") && !envApi.includes("localhost")) {
+    return envApi.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
   }
   return "";
 };

@@ -200,6 +200,83 @@ function SettingsContent() {
     return initial;
   });
 
+  // Server Connection Configuration State
+  const [serverUrlInput, setServerUrlInput] = useState(() => {
+    if (typeof window !== "undefined") {
+      return (
+        localStorage.getItem("zoom_custom_backend_url") ||
+        (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("127.0.0.1") ? process.env.NEXT_PUBLIC_API_URL : "") ||
+        "https://long-heads-flow.loca.lt"
+      );
+    }
+    return "https://long-heads-flow.loca.lt";
+  });
+
+  const [connectedServer, setConnectedServer] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return (
+        localStorage.getItem("zoom_custom_backend_url") ||
+        (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("127.0.0.1") ? process.env.NEXT_PUBLIC_API_URL : null)
+      );
+    }
+    return null;
+  });
+
+  const [isCheckingServer, setIsCheckingServer] = useState(false);
+  const [serverTestResult, setServerTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSaveServerUrl = async () => {
+    let url = serverUrlInput.trim();
+    if (!url) {
+      setServerTestResult({ success: false, message: "Please enter a backend URL." });
+      return;
+    }
+    url = url.replace(/\/+$/, "");
+    setIsCheckingServer(true);
+    setServerTestResult(null);
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`${url}/api/v1/meetings?filter=upcoming`, {
+        headers: { "Bypass-Tunnel-Reminder": "true" },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      if (res.ok) {
+        localStorage.setItem("zoom_custom_backend_url", url);
+        localStorage.setItem("zoom_custom_ws_url", url.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:"));
+        setConnectedServer(url);
+        setServerTestResult({
+          success: true,
+          message: "Connected successfully! Cross-device sync and WebRTC video calling are now active.",
+        });
+        showToast("Connected to backend server!", "success");
+      } else {
+        setServerTestResult({
+          success: false,
+          message: `Server responded with status ${res.status}. Please check URL.`,
+        });
+      }
+    } catch {
+      setServerTestResult({
+        success: false,
+        message: "Failed to connect to this URL. Ensure your backend or tunnel is running.",
+      });
+    } finally {
+      setIsCheckingServer(false);
+    }
+  };
+
+  const handleResetServerUrl = () => {
+    localStorage.removeItem("zoom_custom_backend_url");
+    localStorage.removeItem("zoom_custom_ws_url");
+    setConnectedServer(null);
+    setServerTestResult({ success: true, message: "Switched to local standalone mode." });
+    showToast("Disconnected custom server", "info");
+  };
+
   // Fetch settings from backend on mount
   useEffect(() => {
     async function fetchSettings() {
@@ -509,6 +586,73 @@ function SettingsContent() {
 
         {/* Right Column 3: Main Settings Content Area */}
         <main className="flex-1 space-y-10 pb-24">
+          {/* Cloud Backend Server Connection Card */}
+          <div className="bg-gradient-to-r from-blue-50/90 to-indigo-50/90 rounded-2xl border border-blue-200 p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-[#1C1C28]">
+                    Cross-Device Sync & Backend Server
+                  </h3>
+                  <span
+                    className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5 ${
+                      connectedServer
+                        ? "bg-green-100 text-green-700 border border-green-300"
+                        : "bg-amber-100 text-amber-700 border border-amber-300"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        connectedServer ? "bg-green-500 animate-pulse" : "bg-amber-500"
+                      }`}
+                    />
+                    {connectedServer ? "Connected (Live Sync)" : "Standalone (Single Device)"}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 mt-1 max-w-xl">
+                  To join meetings across multiple devices (e.g. <strong>Laptop and Mobile</strong>), both devices must connect to the same backend server URL.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 items-center mt-3">
+              <input
+                type="text"
+                placeholder="https://long-heads-flow.loca.lt or https://your-backend.onrender.com"
+                value={serverUrlInput}
+                onChange={(e) => setServerUrlInput(e.target.value)}
+                className="flex-1 w-full px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B5CFF] bg-white font-mono text-xs"
+              />
+              <button
+                type="button"
+                onClick={handleSaveServerUrl}
+                disabled={isCheckingServer}
+                className="w-full sm:w-auto px-5 py-2 bg-[#0B5CFF] hover:bg-blue-600 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shadow-sm disabled:opacity-50"
+              >
+                {isCheckingServer ? "Testing Connection..." : "Connect Server"}
+              </button>
+              {connectedServer && (
+                <button
+                  type="button"
+                  onClick={handleResetServerUrl}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+
+            {serverTestResult && (
+              <p
+                className={`text-xs mt-2 font-medium ${
+                  serverTestResult.success ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                {serverTestResult.message}
+              </p>
+            )}
+          </div>
+
           {SETTINGS_CATEGORIES.map((category) => (
             <section
               key={category.id}

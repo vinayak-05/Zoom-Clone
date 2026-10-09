@@ -120,7 +120,10 @@ async function safeAuthFetch(endpoint: string, data: any): Promise<any | null> {
     const timer = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(`${base}${endpoint}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Bypass-Tunnel-Reminder": "true",
+      },
       body: JSON.stringify(data),
       signal: controller.signal,
     });
