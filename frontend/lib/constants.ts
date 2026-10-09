@@ -2,7 +2,7 @@
  * Global application constants and configuration.
  */
 
-export const DEFAULT_TUNNEL_URL = "https://long-heads-flow.loca.lt";
+export const DEFAULT_TUNNEL_URL = "https://limit-binary-edgar-mailto.trycloudflare.com";
 
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {

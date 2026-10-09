@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { WS_BASE_URL } from "../lib/constants";
+import { WS_BASE_URL, getWsBaseUrl } from "../lib/constants";
 import type { Participant, ChatMessage } from "../lib/types";
 
 interface UseMeetingSocketProps {
@@ -41,7 +41,7 @@ export function useMeetingSocket({
   useEffect(() => {
     if (!meetingCode || !participantId) return;
 
-    let wsHost = WS_BASE_URL;
+    let wsHost = getWsBaseUrl();
     if (typeof window !== "undefined" && wsHost.includes("localhost:8000")) {
       wsHost = "ws://127.0.0.1:8000";
     }

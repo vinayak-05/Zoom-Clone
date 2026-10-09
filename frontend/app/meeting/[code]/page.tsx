@@ -270,6 +270,16 @@ export default function MeetingRoomPage() {
     }
   }, [codeParam]);
 
+  // Periodic active participant sync across all devices
+  useEffect(() => {
+    if (!hasJoined || !codeParam) return;
+    refreshParticipants();
+    const interval = setInterval(() => {
+      refreshParticipants();
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [hasJoined, codeParam, refreshParticipants]);
+
   // 5. WebSocket Hooks & Handlers
   const currentParticipantId = joinData?.participant?.id || null;
 
@@ -633,8 +643,6 @@ export default function MeetingRoomPage() {
   const remoteTiles: ParticipantTileData[] = participants
     .filter((p) => {
       if (currentParticipant?.id && p.id === currentParticipant.id) return false;
-      if (currentParticipant?.user_id && p.user_id && p.user_id === currentParticipant.user_id) return false;
-      if (isHost && p.role === "host" && p.display_name === currentParticipant?.display_name) return false;
       return true;
     })
     .map((p) => ({
