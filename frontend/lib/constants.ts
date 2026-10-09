@@ -2,7 +2,7 @@
  * Global application constants and configuration.
  */
 
-export const DEFAULT_TUNNEL_URL = "https://basic-opened-consciousness-attractions.trycloudflare.com";
+export const DEFAULT_TUNNEL_URL = "https://zoom-clone-qh1s.onrender.com";
 
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {
@@ -13,9 +13,10 @@ export const getApiBaseUrl = (): string => {
         const isStale =
           custom.includes("loca.lt") ||
           custom.includes("ngrok") ||
+          custom.includes("trycloudflare.com") ||
           ((custom.includes("127.0.0.1") || custom.includes("localhost")) &&
-            window.location.hostname.includes("netlify.app")) ||
-          (custom.includes("trycloudflare.com") && custom !== DEFAULT_TUNNEL_URL);
+            (window.location.hostname.includes("netlify.app") || window.location.hostname.includes("vercel.app"))) ||
+          (custom.includes("onrender.com") && custom !== DEFAULT_TUNNEL_URL);
         if (isStale) {
           localStorage.removeItem("zoom_custom_backend_url");
         } else {
@@ -49,7 +50,7 @@ export const getApiBaseUrl = (): string => {
       }
     }
 
-    // 5. Default public deployment (Netlify): connect directly to the live backend tunnel
+    // 5. Default public deployment: connect directly to the permanent Render backend
     return DEFAULT_TUNNEL_URL;
   }
 
@@ -69,9 +70,10 @@ export const getWsBaseUrl = (): string => {
         const isStaleWs =
           customWs.includes("loca.lt") ||
           customWs.includes("ngrok") ||
+          customWs.includes("trycloudflare.com") ||
           ((customWs.includes("127.0.0.1") || customWs.includes("localhost")) &&
-            window.location.hostname.includes("netlify.app")) ||
-          (customWs.includes("trycloudflare.com") && !customWs.includes("basic-opened-consciousness-attractions"));
+            (window.location.hostname.includes("netlify.app") || window.location.hostname.includes("vercel.app"))) ||
+          (customWs.includes("onrender.com") && !customWs.includes("zoom-clone-qh1s"));
         if (isStaleWs) {
           localStorage.removeItem("zoom_custom_ws_url");
         } else {
@@ -83,9 +85,10 @@ export const getWsBaseUrl = (): string => {
         const isStaleApi =
           customApi.includes("loca.lt") ||
           customApi.includes("ngrok") ||
+          customApi.includes("trycloudflare.com") ||
           ((customApi.includes("127.0.0.1") || customApi.includes("localhost")) &&
-            window.location.hostname.includes("netlify.app")) ||
-          (customApi.includes("trycloudflare.com") && customApi !== DEFAULT_TUNNEL_URL);
+            (window.location.hostname.includes("netlify.app") || window.location.hostname.includes("vercel.app"))) ||
+          (customApi.includes("onrender.com") && customApi !== DEFAULT_TUNNEL_URL);
         if (isStaleApi) {
           localStorage.removeItem("zoom_custom_backend_url");
         } else {

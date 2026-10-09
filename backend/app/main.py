@@ -63,6 +63,16 @@ def create_app() -> FastAPI:
             content={"detail": str(exc)},
         )
 
+    # Root status route
+    @application.get("/", tags=["Health"])
+    def root() -> dict[str, str]:
+        return {
+            "status": "online",
+            "service": "Zoom Clone Backend API",
+            "docs": "/docs",
+            "health": "/health",
+        }
+
     # Health-check route
     @application.get("/health", tags=["Health"])
     def health_check() -> dict[str, str]:
