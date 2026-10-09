@@ -362,6 +362,8 @@ export default function MeetingRoomPage() {
     sendChatMessage: socketSendChat,
     sendMuteAll: socketSendMuteAll,
     sendMuteParticipant: socketSendMute,
+    sendAudioToggle: socketSendAudioToggle,
+    sendVideoToggle: socketSendVideoToggle,
     sendRemoveParticipant: socketSendRemove,
     sendMeetingEnded: socketSendEnd,
     sendReaction: socketSendReaction,
@@ -376,6 +378,11 @@ export default function MeetingRoomPage() {
       webrtcHandlersRef.current?.initiateCall(pid);
       showToast("A new participant joined.", "info");
     },
+    onParticipantReady: (pid) => {
+      if (currentParticipantId && pid !== currentParticipantId) {
+        webrtcHandlersRef.current?.initiateCall(pid);
+      }
+    },
     onParticipantLeft: (pid) => {
       webrtcHandlersRef.current?.removePeer(pid);
       setParticipants((prev) => prev.filter((p) => p.id !== pid));
@@ -384,6 +391,16 @@ export default function MeetingRoomPage() {
     onParticipantMuted: handleParticipantMuted,
     onParticipantRemoved: handleParticipantRemoved,
     onMeetingEnded: handleMeetingEnded,
+    onParticipantAudioToggle: (pid, isMuted) => {
+      setParticipants((prev) =>
+        prev.map((p) => (p.id === pid ? { ...p, is_muted: isMuted } : p))
+      );
+    },
+    onParticipantVideoToggle: (pid, isVideoOff) => {
+      setParticipants((prev) =>
+        prev.map((p) => (p.id === pid ? { ...p, is_video_off: isVideoOff } : p))
+      );
+    },
     onChatMessage: handleRemoteChatMessage,
     onReaction: handleRemoteReaction,
     onWebRtcOffer: (senderId, offer) => webrtcHandlersRef.current?.handleOffer(senderId, offer),
@@ -1119,6 +1136,7 @@ export default function MeetingRoomPage() {
             isIncomingVideoStopped={isIncomingVideoStopped}
             onToggleAudio={async () => {
               const isAudioActive = toggleAudio();
+              socketSendAudioToggle(!isAudioActive);
               if (joinData?.participant?.id) {
                 try {
                   await api.updateParticipantFlags(joinData.participant.id, {
@@ -1131,6 +1149,7 @@ export default function MeetingRoomPage() {
             }}
             onToggleVideo={async () => {
               const isVideoActive = await toggleVideo();
+              socketSendVideoToggle(!isVideoActive);
               if (joinData?.participant?.id) {
                 try {
                   await api.updateParticipantFlags(joinData.participant.id, {

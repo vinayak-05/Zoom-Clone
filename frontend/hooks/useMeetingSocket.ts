@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { WS_BASE_URL, getWsBaseUrl } from "../lib/constants";
+import { getWsBaseUrl } from "../lib/constants";
 import type { Participant, ChatMessage } from "../lib/types";
 
 interface UseMeetingSocketProps {
   meetingCode: string;
   participantId: number | null;
   onParticipantJoined?: (participantId: number) => void;
+  onParticipantReady?: (participantId: number) => void;
   onParticipantLeft?: (participantId: number) => void;
   onMutedByHost?: () => void;
   onParticipantMuted?: (targetId: number, isMuted: boolean) => void;
   onParticipantRemoved?: (targetId: number) => void;
   onMeetingEnded?: () => void;
+  onParticipantAudioToggle?: (participantId: number, isMuted: boolean) => void;
+  onParticipantVideoToggle?: (participantId: number, isVideoOff: boolean) => void;
   onChatMessage?: (message: ChatMessage) => void;
   onReaction?: (reaction: string, senderId: number) => void;
   onWebRtcOffer?: (senderId: number, offer: RTCSessionDescriptionInit) => void;
@@ -24,11 +27,14 @@ export function useMeetingSocket({
   meetingCode,
   participantId,
   onParticipantJoined,
+  onParticipantReady,
   onParticipantLeft,
   onMutedByHost,
   onParticipantMuted,
   onParticipantRemoved,
   onMeetingEnded,
+  onParticipantAudioToggle,
+  onParticipantVideoToggle,
   onChatMessage,
   onReaction,
   onWebRtcOffer,
@@ -41,11 +47,12 @@ export function useMeetingSocket({
   useEffect(() => {
     if (!meetingCode || !participantId) return;
 
+    const cleanCode = meetingCode.replace(/\D/g, "") || meetingCode;
     let wsHost = getWsBaseUrl();
     if (typeof window !== "undefined" && wsHost.includes("localhost:8000")) {
       wsHost = "ws://127.0.0.1:8000";
     }
-    const wsUrl = `${wsHost}/ws/meeting/${meetingCode}?participant_id=${participantId}`;
+    const wsUrl = `${wsHost}/ws/meeting/${cleanCode}?participant_id=${participantId}`;
     let socket: WebSocket;
 
     try {
@@ -54,6 +61,15 @@ export function useMeetingSocket({
 
       socket.onopen = () => {
         setIsConnected(true);
+        // Notify existing peers that this participant is ready for WebRTC negotiation
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              type: "participant_ready",
+              participant_id: participantId,
+            })
+          );
+        }
       };
 
       socket.onmessage = (event) => {
@@ -63,6 +79,8 @@ export function useMeetingSocket({
 
           if (type === "participant_joined") {
             onParticipantJoined?.(data.participant_id);
+          } else if (type === "participant_ready") {
+            onParticipantReady?.(data.participant_id);
           } else if (type === "participant_left") {
             onParticipantLeft?.(data.participant_id);
           } else if (type === "muted_by_host") {
@@ -73,6 +91,10 @@ export function useMeetingSocket({
             onParticipantRemoved?.(data.target_participant_id);
           } else if (type === "meeting_ended") {
             onMeetingEnded?.();
+          } else if (type === "audio_toggle") {
+            onParticipantAudioToggle?.(data.participant_id, data.is_muted);
+          } else if (type === "video_toggle") {
+            onParticipantVideoToggle?.(data.participant_id, data.is_video_off);
           } else if (type === "chat_message") {
             onChatMessage?.({
               id: Date.now(),
@@ -147,6 +169,26 @@ export function useMeetingSocket({
     [sendMessage]
   );
 
+  const sendAudioToggle = useCallback(
+    (isMuted: boolean) => {
+      sendMessage({
+        type: "audio_toggle",
+        is_muted: isMuted,
+      });
+    },
+    [sendMessage]
+  );
+
+  const sendVideoToggle = useCallback(
+    (isVideoOff: boolean) => {
+      sendMessage({
+        type: "video_toggle",
+        is_video_off: isVideoOff,
+      });
+    },
+    [sendMessage]
+  );
+
   const sendRemoveParticipant = useCallback(
     (targetParticipantId: number) => {
       sendMessage({
@@ -207,6 +249,8 @@ export function useMeetingSocket({
     sendChatMessage,
     sendMuteAll,
     sendMuteParticipant,
+    sendAudioToggle,
+    sendVideoToggle,
     sendRemoveParticipant,
     sendMeetingEnded,
     sendReaction,

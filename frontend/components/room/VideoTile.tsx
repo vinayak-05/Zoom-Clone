@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useCallback } from "react";
 import { MicOff, Hand, Pin } from "lucide-react";
-import { cn, getInitials, getAvatarHexColor } from "../../lib/utils";
+import { cn, getAvatarHexColor } from "../../lib/utils";
 
 export interface VideoTileProps {
   id: string | number;
@@ -38,45 +38,66 @@ export function VideoTile({
   isPinned = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // If incoming video stopped by user preference, treat remote videos as video-off
   const isVideoSuppressed = !isLocal && isIncomingVideoStopped;
 
-  const hasLiveVideo = Boolean(
-    !isVideoSuppressed &&
-      stream &&
-      !isVideoOff &&
-      (stream.getVideoTracks().length === 0 || stream.getVideoTracks().some((t) => t.readyState === "live"))
+  // Determine if video track is live and enabled
+  const hasLiveVideoTrack = Boolean(
+    stream &&
+      stream.getVideoTracks().length > 0 &&
+      stream.getVideoTracks().some((t) => t.readyState === "live" && t.enabled)
   );
 
-  const bindVideoRef = useCallback(
-    (el: HTMLVideoElement | null) => {
-      videoRef.current = el;
-      if (el && stream && !isVideoOff && !isVideoSuppressed) {
-        if (el.srcObject !== stream) {
-          el.srcObject = stream;
-        }
-        el.play().catch((err) => console.warn("Video play error:", err));
-      }
-    },
-    [stream, isVideoOff, isVideoSuppressed]
-  );
+  const hasLiveVideo = Boolean(!isVideoSuppressed && !isVideoOff && hasLiveVideoTrack);
 
+  // Bind and play video stream
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
-    if (stream && !isVideoOff && !isVideoSuppressed) {
+    if (stream) {
       if (videoEl.srcObject !== stream) {
         videoEl.srcObject = stream;
       }
       videoEl.play().catch((err) => {
-        console.warn("Video play error:", err);
+        // Autoplay may require user gesture on mobile
+        const unlock = () => {
+          videoEl.play().catch(() => {});
+          window.removeEventListener("touchstart", unlock);
+          window.removeEventListener("click", unlock);
+        };
+        window.addEventListener("touchstart", unlock, { once: true });
+        window.addEventListener("click", unlock, { once: true });
       });
     } else {
       videoEl.srcObject = null;
     }
-  }, [stream, isVideoOff, isVideoSuppressed]);
+  }, [stream]);
+
+  // Dedicated audio playback for remote participants to guarantee audio is heard even if video is off
+  useEffect(() => {
+    const audioEl = audioRef.current;
+    if (!audioEl || isLocal) return;
+
+    if (stream && stream.getAudioTracks().length > 0) {
+      if (audioEl.srcObject !== stream) {
+        audioEl.srcObject = stream;
+      }
+      audioEl.play().catch((err) => {
+        const unlock = () => {
+          audioEl.play().catch(() => {});
+          window.removeEventListener("touchstart", unlock);
+          window.removeEventListener("click", unlock);
+        };
+        window.addEventListener("touchstart", unlock, { once: true });
+        window.addEventListener("click", unlock, { once: true });
+      });
+    } else {
+      audioEl.srcObject = null;
+    }
+  }, [stream, isLocal]);
 
   const initialLetter = (displayName || "V").trim().charAt(0).toUpperCase();
   const avatarHexColor = getAvatarHexColor(displayName || "Vinayak");
@@ -91,7 +112,7 @@ export function VideoTile({
     >
       {/* Video Stream Element */}
       <video
-        ref={bindVideoRef}
+        ref={videoRef}
         autoPlay
         playsInline
         muted={isLocal} // Always mute local element to avoid acoustic feedback
@@ -102,7 +123,16 @@ export function VideoTile({
         )}
       />
 
-      {/* Video Off Exact Zoom Avatar State (Screenshot 1: Burnt Orange Square with Bold Letter) */}
+      {/* Dedicated Remote Audio Element (Never hidden to ensure continuous audio playback) */}
+      {!isLocal && (
+        <audio
+          ref={audioRef}
+          autoPlay
+          playsInline
+        />
+      )}
+
+      {/* Video Off Exact Zoom Avatar State (Burnt Orange / Distinct Square with Bold Letter) */}
       {!hasLiveVideo && (
         <div className="flex flex-col items-center justify-center p-4">
           <div
@@ -138,20 +168,20 @@ export function VideoTile({
           className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           title={isPinned ? "Unpin video" : "Pin video"}
         >
-          <Pin className={cn("w-3.5 h-3.5", isPinned && "fill-current text-white")} />
+          <Pin className={cn("w-4 h-4", isPinned && "fill-current text-white")} />
         </button>
       )}
 
-      {/* Bottom-left Information Pill (Screenshot 1: Red Mic Icon + Display Name) */}
-      <div className="absolute bottom-3 left-3 flex items-center pointer-events-none z-10">
-        <div className="bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-md text-xs text-white font-medium flex items-center gap-1.5 max-w-[240px] truncate shadow-sm">
-          {isMuted ? (
-            <MicOff className="w-3.5 h-3.5 text-[#E11D48] flex-shrink-0" />
-          ) : (
-            <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-          )}
-          <span className="truncate">{displayName}</span>
-        </div>
+      {/* Bottom Name Label + Status Indicators */}
+      <div className="absolute bottom-2.5 left-2.5 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-white text-xs max-w-[85%] truncate">
+        {isMuted && (
+          <MicOff className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+        )}
+        <span className="truncate font-medium">
+          {displayName}
+          {isLocal && " (Me)"}
+          {isHost && " (Host)"}
+        </span>
       </div>
     </div>
   );
