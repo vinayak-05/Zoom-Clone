@@ -54,7 +54,13 @@ export function VideoTile({
 
     const evaluateVideoTracks = () => {
       const vTracks = stream.getVideoTracks();
-      const live = vTracks.length > 0 && vTracks.some((t) => t.readyState === "live" && t.enabled);
+      const live =
+        vTracks.length > 0 &&
+        vTracks.some((t) => {
+          if (t.readyState !== "live" || !t.enabled) return false;
+          // Local tracks are never muted; remote tracks unmute when first RTP packets arrive
+          return isLocal || !t.muted;
+        });
       setHasLiveVideoTrack(live);
     };
 

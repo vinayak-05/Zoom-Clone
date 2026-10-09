@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getWsBaseUrl } from "../lib/constants";
-import type { Participant, ChatMessage } from "../lib/types";
+import type { ChatMessage } from "../lib/types";
 
 interface UseMeetingSocketProps {
   meetingCode: string;
@@ -44,8 +44,53 @@ export function useMeetingSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
+  // Store callbacks in ref to prevent stale closures and avoid unnecessary reconnects
+  const callbacksRef = useRef<UseMeetingSocketProps>({
+    meetingCode,
+    participantId,
+    onParticipantJoined,
+    onParticipantReady,
+    onParticipantLeft,
+    onMutedByHost,
+    onParticipantMuted,
+    onParticipantRemoved,
+    onMeetingEnded,
+    onParticipantAudioToggle,
+    onParticipantVideoToggle,
+    onChatMessage,
+    onReaction,
+    onWebRtcOffer,
+    onWebRtcAnswer,
+    onWebRtcIceCandidate,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      meetingCode,
+      participantId,
+      onParticipantJoined,
+      onParticipantReady,
+      onParticipantLeft,
+      onMutedByHost,
+      onParticipantMuted,
+      onParticipantRemoved,
+      onMeetingEnded,
+      onParticipantAudioToggle,
+      onParticipantVideoToggle,
+      onChatMessage,
+      onReaction,
+      onWebRtcOffer,
+      onWebRtcAnswer,
+      onWebRtcIceCandidate,
+    };
+  });
+
   useEffect(() => {
     if (!meetingCode || !participantId) return;
+
+    let isDisposed = false;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let pingInterval: NodeJS.Timeout | null = null;
 
     const cleanCode = meetingCode.replace(/\D/g, "") || meetingCode;
     let wsHost = getWsBaseUrl();
@@ -53,83 +98,125 @@ export function useMeetingSocket({
       wsHost = "ws://127.0.0.1:8000";
     }
     const wsUrl = `${wsHost}/ws/meeting/${cleanCode}?participant_id=${participantId}`;
-    let socket: WebSocket;
 
-    try {
-      socket = new WebSocket(wsUrl);
-      wsRef.current = socket;
+    const connect = () => {
+      if (isDisposed) return;
+      console.log(`[WS] Connecting to ${wsUrl}...`);
+      let socket: WebSocket;
 
-      socket.onopen = () => {
-        setIsConnected(true);
-        // Notify existing peers that this participant is ready for WebRTC negotiation
-        if (socket.readyState === WebSocket.OPEN) {
+      try {
+        socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
+
+        socket.onopen = () => {
+          if (isDisposed) {
+            socket.close();
+            return;
+          }
+          console.log(`[WS] Connected successfully as participant ${participantId}`);
+          setIsConnected(true);
+
+          // Heartbeat keepalive every 20s across tunnel and cellular networks
+          if (pingInterval) clearInterval(pingInterval);
+          pingInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "ping" }));
+            }
+          }, 20000);
+
+          // Announce readiness for WebRTC negotiation
           socket.send(
             JSON.stringify({
               type: "participant_ready",
               participant_id: participantId,
             })
           );
-        }
-      };
+        };
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const type = data.type;
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            const type = data.type;
+            const cb = callbacksRef.current;
 
-          if (type === "participant_joined") {
-            onParticipantJoined?.(data.participant_id);
-          } else if (type === "participant_ready") {
-            onParticipantReady?.(data.participant_id);
-          } else if (type === "participant_left") {
-            onParticipantLeft?.(data.participant_id);
-          } else if (type === "muted_by_host") {
-            onMutedByHost?.();
-          } else if (type === "participant_muted") {
-            onParticipantMuted?.(data.target_participant_id, data.is_muted);
-          } else if (type === "participant_removed") {
-            onParticipantRemoved?.(data.target_participant_id);
-          } else if (type === "meeting_ended") {
-            onMeetingEnded?.();
-          } else if (type === "audio_toggle") {
-            onParticipantAudioToggle?.(data.participant_id, data.is_muted);
-          } else if (type === "video_toggle") {
-            onParticipantVideoToggle?.(data.participant_id, data.is_video_off);
-          } else if (type === "chat_message") {
-            onChatMessage?.({
-              id: Date.now(),
-              meeting_id: 0,
-              participant_id: data.participant_id,
-              content: data.content,
-              created_at: new Date().toISOString(),
-              sender_name: data.sender_name || "Participant",
-            });
-          } else if (type === "reaction") {
-            onReaction?.(data.reaction, data.participant_id);
-          } else if (type === "webrtc_offer") {
-            onWebRtcOffer?.(data.sender_participant_id, data.offer);
-          } else if (type === "webrtc_answer") {
-            onWebRtcAnswer?.(data.sender_participant_id, data.answer);
-          } else if (type === "webrtc_ice_candidate") {
-            onWebRtcIceCandidate?.(data.sender_participant_id, data.candidate);
+            if (type === "pong") {
+              return;
+            }
+
+            if (type === "participant_joined") {
+              console.log(`[WS] participant_joined: ${data.participant_id}`);
+              cb.onParticipantJoined?.(data.participant_id);
+            } else if (type === "participant_ready") {
+              console.log(`[WS] participant_ready: ${data.participant_id}`);
+              cb.onParticipantReady?.(data.participant_id);
+            } else if (type === "participant_left") {
+              console.log(`[WS] participant_left: ${data.participant_id}`);
+              cb.onParticipantLeft?.(data.participant_id);
+            } else if (type === "muted_by_host") {
+              cb.onMutedByHost?.();
+            } else if (type === "participant_muted") {
+              cb.onParticipantMuted?.(data.target_participant_id, data.is_muted);
+            } else if (type === "participant_removed") {
+              cb.onParticipantRemoved?.(data.target_participant_id);
+            } else if (type === "meeting_ended") {
+              cb.onMeetingEnded?.();
+            } else if (type === "audio_toggle") {
+              cb.onParticipantAudioToggle?.(data.participant_id, data.is_muted);
+            } else if (type === "video_toggle") {
+              cb.onParticipantVideoToggle?.(data.participant_id, data.is_video_off);
+            } else if (type === "chat_message") {
+              cb.onChatMessage?.({
+                id: Date.now(),
+                meeting_id: 0,
+                participant_id: data.participant_id,
+                content: data.content,
+                created_at: new Date().toISOString(),
+                sender_name: data.sender_name || "Participant",
+              });
+            } else if (type === "reaction") {
+              cb.onReaction?.(data.reaction, data.participant_id);
+            } else if (type === "webrtc_offer") {
+              console.log(`[WS] Received webrtc_offer from ${data.sender_participant_id}`);
+              cb.onWebRtcOffer?.(data.sender_participant_id, data.offer);
+            } else if (type === "webrtc_answer") {
+              console.log(`[WS] Received webrtc_answer from ${data.sender_participant_id}`);
+              cb.onWebRtcAnswer?.(data.sender_participant_id, data.answer);
+            } else if (type === "webrtc_ice_candidate") {
+              cb.onWebRtcIceCandidate?.(data.sender_participant_id, data.candidate);
+            }
+          } catch (e) {
+            console.error("Error parsing WebSocket message:", e);
           }
-        } catch (e) {
-          console.error("Error parsing WebSocket message:", e);
+        };
+
+        socket.onerror = (err) => {
+          console.warn(`[WS] Connection error for participant ${participantId}:`, err);
+        };
+
+        socket.onclose = () => {
+          console.warn(`[WS] Closed for participant ${participantId}`);
+          setIsConnected(false);
+          if (pingInterval) clearInterval(pingInterval);
+
+          if (!isDisposed) {
+            console.log(`[WS] Auto-reconnecting in 1500ms...`);
+            reconnectTimeout = setTimeout(connect, 1500);
+          }
+        };
+      } catch (err) {
+        console.error("Failed to initialize WebSocket:", err);
+        if (!isDisposed) {
+          reconnectTimeout = setTimeout(connect, 2000);
         }
-      };
+      }
+    };
 
-      socket.onerror = (err) => {
-        console.warn("WebSocket connection error:", err);
-      };
-
-      socket.onclose = () => {
-        setIsConnected(false);
-      };
-    } catch (err) {
-      console.error("Failed to initialize WebSocket:", err);
-    }
+    connect();
 
     return () => {
+      isDisposed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (pingInterval) clearInterval(pingInterval);
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;

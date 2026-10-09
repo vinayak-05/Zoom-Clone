@@ -270,7 +270,7 @@ export default function MeetingRoomPage() {
         setParticipants(list);
         if (currentParticipantId) {
           list.forEach((p) => {
-            if (p.id !== currentParticipantId && currentParticipantId < p.id) {
+            if (p.id !== currentParticipantId) {
               webrtcHandlersRef.current?.initiateCall(p.id);
             }
           });

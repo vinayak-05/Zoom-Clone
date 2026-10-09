@@ -197,6 +197,10 @@ async def meeting_websocket_endpoint(
                 data["participant_id"] = participant_id
                 await manager.broadcast(room_code, data)
 
+            # 8. Heartbeat keepalive ping
+            elif msg_type == "ping":
+                await websocket.send_text(json.dumps({"type": "pong"}))
+
     except WebSocketDisconnect:
         manager.disconnect(room_code, participant_id)
         await manager.broadcast(room_code, {
@@ -210,3 +214,13 @@ async def meeting_websocket_endpoint(
             "type": "participant_left",
             "participant_id": participant_id,
         })
+
+
+@router.get("/ws/debug")
+async def ws_debug_endpoint():
+    """Debug active WebSocket rooms and participant connections."""
+    return {
+        "rooms": {room: list(conns.keys()) for room, conns in manager.rooms.items()},
+        "buffered": {room: list(buf.keys()) for room, buf in manager.message_buffer.items()},
+    }
+
