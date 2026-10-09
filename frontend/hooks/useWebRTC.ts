@@ -49,7 +49,6 @@ export function useWebRTC({
       console.log(`[WebRTC] Initializing RTCPeerConnection for peer ${peerId}`);
       const pc = new RTCPeerConnection({
         iceServers: ICE_SERVERS,
-        iceCandidatePoolSize: 2,
       });
 
       // Add local tracks if available
@@ -96,13 +95,20 @@ export function useWebRTC({
         }
 
         const notifyStreamUpdated = () => {
+          const allTracks = stream!.getTracks();
+          const freshStream = new MediaStream(allTracks);
           setRemoteStreams((prev) => ({
             ...prev,
-            [peerId]: stream!,
+            [peerId]: freshStream,
           }));
         };
 
         notifyStreamUpdated();
+
+        event.track.onmute = () => {
+          console.log(`[WebRTC] Track muted from ${peerId}: kind=${event.track.kind}`);
+          notifyStreamUpdated();
+        };
 
         event.track.onunmute = () => {
           console.log(`[WebRTC] Track unmuted from ${peerId}: kind=${event.track.kind}`);

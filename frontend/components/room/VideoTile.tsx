@@ -38,6 +38,7 @@ export function VideoTile({
   isPinned = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [hasLiveVideoTrack, setHasLiveVideoTrack] = useState<boolean>(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState<boolean>(false);
 
@@ -55,16 +56,19 @@ export function VideoTile({
       const vTracks = stream.getVideoTracks();
       const live =
         vTracks.length > 0 &&
-        vTracks.some((t) => t.readyState === "live" && t.enabled);
+        vTracks.some((t) => t.readyState === "live" && t.enabled && !t.muted);
       setHasLiveVideoTrack(live);
     };
 
     evaluateVideoTracks();
 
+    // Periodic check ensures state stays synchronized even if browser events miss a transition
+    const interval = setInterval(evaluateVideoTracks, 800);
+
     stream.addEventListener("addtrack", evaluateVideoTracks);
     stream.addEventListener("removetrack", evaluateVideoTracks);
 
-    const tracks = stream.getVideoTracks();
+    const tracks = stream.getTracks();
     tracks.forEach((t) => {
       t.addEventListener("mute", evaluateVideoTracks);
       t.addEventListener("unmute", evaluateVideoTracks);
@@ -72,6 +76,7 @@ export function VideoTile({
     });
 
     return () => {
+      clearInterval(interval);
       stream.removeEventListener("addtrack", evaluateVideoTracks);
       stream.removeEventListener("removetrack", evaluateVideoTracks);
       tracks.forEach((t) => {
@@ -87,35 +92,52 @@ export function VideoTile({
   // Bind and play video and audio streams
   useEffect(() => {
     const videoEl = videoRef.current;
-    if (!videoEl) return;
+    const audioEl = audioRef.current;
 
     if (stream) {
-      if (videoEl.srcObject !== stream) {
-        videoEl.srcObject = stream;
-      }
-      videoEl
-        .play()
-        .then(() => {
-          setAutoplayBlocked(false);
-        })
-        .catch((err) => {
-          console.warn(`[VideoTile] Play blocked for ${displayName}:`, err);
-          if (!isLocal) {
-            setAutoplayBlocked(true);
-          }
+      // 1. Video playback (always muted to guarantee 100% autoplay across all mobile/desktop devices)
+      if (videoEl) {
+        if (videoEl.srcObject !== stream) {
+          videoEl.srcObject = stream;
+        }
+        videoEl.play().catch((err) => {
+          console.warn(`[VideoTile] Video play error for ${displayName}:`, err);
         });
+      }
+
+      // 2. Dedicated remote audio playback
+      if (!isLocal && audioEl) {
+        if (audioEl.srcObject !== stream) {
+          audioEl.srcObject = stream;
+        }
+        audioEl
+          .play()
+          .then(() => {
+            setAutoplayBlocked(false);
+          })
+          .catch((err) => {
+            console.warn(`[VideoTile] Audio autoplay blocked for ${displayName}:`, err);
+            setAutoplayBlocked(true);
+          });
+      }
     } else {
-      videoEl.srcObject = null;
+      if (videoEl) videoEl.srcObject = null;
+      if (audioEl) audioEl.srcObject = null;
       setAutoplayBlocked(false);
     }
   }, [stream, displayName, isLocal]);
 
   const handleTileClick = () => {
-    if (!isLocal && videoRef.current && videoRef.current.paused) {
-      videoRef.current
-        .play()
-        .then(() => setAutoplayBlocked(false))
-        .catch(() => {});
+    if (!isLocal) {
+      if (videoRef.current && videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+      }
+      if (audioRef.current && audioRef.current.paused) {
+        audioRef.current
+          .play()
+          .then(() => setAutoplayBlocked(false))
+          .catch(() => {});
+      }
     }
   };
 
@@ -131,19 +153,28 @@ export function VideoTile({
         className
       )}
     >
-      {/* Video Element: Plays both audio & video for remote participants (muted only for local user) */}
+      {/* Video Element: ALWAYS muted={true} so browsers NEVER block autoplay on mobile/desktop */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted={isLocal}
+        muted={true}
         className={cn(
           "w-full h-full object-cover",
           isLocal && "transform -scale-x-100"
         )}
       />
 
-      {/* Video Off Exact Zoom Avatar State (Rendered as overlay so audio continues playing through the video element) */}
+      {/* Dedicated Remote Audio Element: Plays audio smoothly with zero interference to video */}
+      {!isLocal && (
+        <audio
+          ref={audioRef}
+          autoPlay
+          playsInline
+        />
+      )}
+
+      {/* Video Off Exact Zoom Avatar State (Rendered as overlay so audio continues playing) */}
       {!hasLiveVideo && (
         <div className="absolute inset-0 bg-[#18181D] flex flex-col items-center justify-center p-4 z-10 pointer-events-none">
           <div
@@ -155,13 +186,13 @@ export function VideoTile({
         </div>
       )}
 
-      {/* Mobile Audio/Video Autoplay Tap-to-Unmute Prompt */}
+      {/* Mobile Audio Autoplay Tap-to-Unmute Prompt */}
       {autoplayBlocked && !isLocal && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (videoRef.current) {
-              videoRef.current
+            if (audioRef.current) {
+              audioRef.current
                 .play()
                 .then(() => setAutoplayBlocked(false))
                 .catch(() => {});
