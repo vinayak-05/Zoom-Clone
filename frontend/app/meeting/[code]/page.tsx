@@ -259,16 +259,27 @@ export default function MeetingRoomPage() {
     };
   }, [isCaptionsActive]);
 
-  // 4. Refresh Active Participants from Server
+  // 4. Current Participant ID and Refresh Active Participants from Server
+  const currentParticipantId = joinData?.participant?.id || null;
+
   const refreshParticipants = useCallback(async () => {
     if (!codeParam) return;
     try {
       const list = await api.getParticipants(codeParam);
-      setParticipants(list);
+      if (Array.isArray(list)) {
+        setParticipants(list);
+        if (currentParticipantId) {
+          list.forEach((p) => {
+            if (p.id !== currentParticipantId && currentParticipantId < p.id) {
+              webrtcHandlersRef.current?.initiateCall(p.id);
+            }
+          });
+        }
+      }
     } catch (err) {
       console.warn("Error refreshing participants:", err);
     }
-  }, [codeParam]);
+  }, [codeParam, currentParticipantId]);
 
   // Periodic active participant sync across all devices
   useEffect(() => {
@@ -281,7 +292,6 @@ export default function MeetingRoomPage() {
   }, [hasJoined, codeParam, refreshParticipants]);
 
   // 5. WebSocket Hooks & Handlers
-  const currentParticipantId = joinData?.participant?.id || null;
 
   const handleRemoteChatMessage = useCallback(
     (msg: ChatMessage) => {
@@ -640,9 +650,12 @@ export default function MeetingRoomPage() {
   };
 
   const currentParticipant = joinData?.participant;
+  const seenParticipantIds = new Set<number>();
   const remoteTiles: ParticipantTileData[] = participants
     .filter((p) => {
       if (currentParticipant?.id && p.id === currentParticipant.id) return false;
+      if (seenParticipantIds.has(p.id)) return false;
+      seenParticipantIds.add(p.id);
       return true;
     })
     .map((p) => ({

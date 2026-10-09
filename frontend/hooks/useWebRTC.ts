@@ -97,6 +97,14 @@ export function useWebRTC({
   const initiateCall = useCallback(
     async (peerId: number) => {
       try {
+        const existing = peerConnectionsRef.current.get(peerId);
+        if (
+          existing &&
+          (existing.connectionState === "connected" ||
+            existing.signalingState === "have-local-offer")
+        ) {
+          return;
+        }
         const pc = getOrCreatePeerConnection(peerId);
         const offer = await pc.createOffer({
           offerToReceiveAudio: true,

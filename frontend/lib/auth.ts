@@ -117,7 +117,7 @@ async function safeAuthFetch(endpoint: string, data: any): Promise<any | null> {
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
+    const timer = setTimeout(() => controller.abort(), 10000);
     const res = await fetch(`${base}${endpoint}`, {
       method: "POST",
       headers: {

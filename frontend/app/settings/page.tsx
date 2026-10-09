@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "../../components/layout/Navbar";
 import { useToast } from "../../components/ui/Toast";
-import { API_BASE_URL, getApiBaseUrl } from "../../lib/constants";
+import { API_BASE_URL, getApiBaseUrl, DEFAULT_TUNNEL_URL } from "../../lib/constants";
 
 interface SettingItem {
   id: string;
@@ -203,13 +203,14 @@ function SettingsContent() {
   // Server Connection Configuration State
   const [serverUrlInput, setServerUrlInput] = useState(() => {
     if (typeof window !== "undefined") {
+      const custom = localStorage.getItem("zoom_custom_backend_url");
+      if (custom && !custom.includes("loca.lt")) return custom;
       return (
-        localStorage.getItem("zoom_custom_backend_url") ||
         (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("127.0.0.1") ? process.env.NEXT_PUBLIC_API_URL : "") ||
-        "https://long-heads-flow.loca.lt"
+        DEFAULT_TUNNEL_URL
       );
     }
-    return "https://long-heads-flow.loca.lt";
+    return DEFAULT_TUNNEL_URL;
   });
 
   const [connectedServer, setConnectedServer] = useState<string | null>(() => {

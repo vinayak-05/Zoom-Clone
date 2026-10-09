@@ -9,7 +9,18 @@ export const getApiBaseUrl = (): string => {
     // 1. Custom override from settings/localStorage
     try {
       const custom = localStorage.getItem("zoom_custom_backend_url");
-      if (custom) return custom;
+      if (custom) {
+        const isStale =
+          custom.includes("loca.lt") ||
+          custom.includes("ngrok") ||
+          ((custom.includes("127.0.0.1") || custom.includes("localhost")) &&
+            window.location.hostname.includes("netlify.app"));
+        if (isStale) {
+          localStorage.removeItem("zoom_custom_backend_url");
+        } else {
+          return custom;
+        }
+      }
     } catch {
       // Storage unavailable
     }
@@ -53,10 +64,30 @@ export const getWsBaseUrl = (): string => {
   if (typeof window !== "undefined") {
     try {
       const customWs = localStorage.getItem("zoom_custom_ws_url");
-      if (customWs) return customWs;
+      if (customWs) {
+        const isStaleWs =
+          customWs.includes("loca.lt") ||
+          customWs.includes("ngrok") ||
+          ((customWs.includes("127.0.0.1") || customWs.includes("localhost")) &&
+            window.location.hostname.includes("netlify.app"));
+        if (isStaleWs) {
+          localStorage.removeItem("zoom_custom_ws_url");
+        } else {
+          return customWs;
+        }
+      }
       const customApi = localStorage.getItem("zoom_custom_backend_url");
       if (customApi) {
-        return customApi.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+        const isStaleApi =
+          customApi.includes("loca.lt") ||
+          customApi.includes("ngrok") ||
+          ((customApi.includes("127.0.0.1") || customApi.includes("localhost")) &&
+            window.location.hostname.includes("netlify.app"));
+        if (isStaleApi) {
+          localStorage.removeItem("zoom_custom_backend_url");
+        } else {
+          return customApi.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+        }
       }
     } catch {
       // Storage unavailable
