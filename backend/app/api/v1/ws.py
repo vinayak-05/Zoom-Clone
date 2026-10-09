@@ -144,13 +144,16 @@ async def meeting_websocket_endpoint(
                 target_pid = data.get("target_participant_id")
                 data["sender_participant_id"] = participant_id
                 if target_pid:
-                    await manager.send_to_participant(room_code, int(target_pid), data)
+                    delivered = await manager.send_to_participant(room_code, int(target_pid), data)
+                    logger.info(f"[WS Signaling] {msg_type} from {participant_id} -> {target_pid} (delivered={delivered})")
                 else:
                     await manager.broadcast(room_code, data, exclude_participant_id=participant_id)
+                    logger.info(f"[WS Signaling] {msg_type} broadcast from {participant_id}")
 
             # 2. Participant ready for signaling handshake
             elif msg_type == "participant_ready":
                 data["participant_id"] = participant_id
+                logger.info(f"[WS Presence] participant_ready from {participant_id} in room {room_code}")
                 await manager.broadcast(room_code, data, exclude_participant_id=participant_id)
 
             # 3. Host controls (mute-all, mute-participant, remove-participant)

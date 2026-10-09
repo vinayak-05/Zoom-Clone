@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback } from "react";
-import { MicOff, Hand, Pin } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { MicOff, Hand, Pin, Volume2 } from "lucide-react";
 import { cn, getAvatarHexColor } from "../../lib/utils";
 
 export interface VideoTileProps {
@@ -39,16 +39,47 @@ export function VideoTile({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [hasLiveVideoTrack, setHasLiveVideoTrack] = useState<boolean>(false);
+  const [audioNeedsUnlock, setAudioNeedsUnlock] = useState<boolean>(false);
 
   // If incoming video stopped by user preference, treat remote videos as video-off
   const isVideoSuppressed = !isLocal && isIncomingVideoStopped;
 
-  // Determine if video track is live and enabled
-  const hasLiveVideoTrack = Boolean(
-    stream &&
-      stream.getVideoTracks().length > 0 &&
-      stream.getVideoTracks().some((t) => t.readyState === "live" && t.enabled)
-  );
+  // Reactively track whether the media stream has an active, enabled video track
+  useEffect(() => {
+    if (!stream) {
+      setHasLiveVideoTrack(false);
+      return;
+    }
+
+    const evaluateVideoTracks = () => {
+      const vTracks = stream.getVideoTracks();
+      const live = vTracks.length > 0 && vTracks.some((t) => t.readyState === "live" && t.enabled);
+      setHasLiveVideoTrack(live);
+    };
+
+    evaluateVideoTracks();
+
+    stream.addEventListener("addtrack", evaluateVideoTracks);
+    stream.addEventListener("removetrack", evaluateVideoTracks);
+
+    const tracks = stream.getVideoTracks();
+    tracks.forEach((t) => {
+      t.addEventListener("mute", evaluateVideoTracks);
+      t.addEventListener("unmute", evaluateVideoTracks);
+      t.addEventListener("ended", evaluateVideoTracks);
+    });
+
+    return () => {
+      stream.removeEventListener("addtrack", evaluateVideoTracks);
+      stream.removeEventListener("removetrack", evaluateVideoTracks);
+      tracks.forEach((t) => {
+        t.removeEventListener("mute", evaluateVideoTracks);
+        t.removeEventListener("unmute", evaluateVideoTracks);
+        t.removeEventListener("ended", evaluateVideoTracks);
+      });
+    };
+  }, [stream]);
 
   const hasLiveVideo = Boolean(!isVideoSuppressed && !isVideoOff && hasLiveVideoTrack);
 
@@ -62,21 +93,14 @@ export function VideoTile({
         videoEl.srcObject = stream;
       }
       videoEl.play().catch((err) => {
-        // Autoplay may require user gesture on mobile
-        const unlock = () => {
-          videoEl.play().catch(() => {});
-          window.removeEventListener("touchstart", unlock);
-          window.removeEventListener("click", unlock);
-        };
-        window.addEventListener("touchstart", unlock, { once: true });
-        window.addEventListener("click", unlock, { once: true });
+        console.warn(`[VideoTile] Video play error for ${displayName}:`, err);
       });
     } else {
       videoEl.srcObject = null;
     }
-  }, [stream]);
+  }, [stream, displayName]);
 
-  // Dedicated audio playback for remote participants to guarantee audio is heard even if video is off
+  // Dedicated audio playback for remote participants with autoplay unlock support
   useEffect(() => {
     const audioEl = audioRef.current;
     if (!audioEl || isLocal) return;
@@ -85,19 +109,32 @@ export function VideoTile({
       if (audioEl.srcObject !== stream) {
         audioEl.srcObject = stream;
       }
-      audioEl.play().catch((err) => {
-        const unlock = () => {
-          audioEl.play().catch(() => {});
-          window.removeEventListener("touchstart", unlock);
-          window.removeEventListener("click", unlock);
-        };
-        window.addEventListener("touchstart", unlock, { once: true });
-        window.addEventListener("click", unlock, { once: true });
-      });
+
+      const tryPlayAudio = () => {
+        audioEl
+          .play()
+          .then(() => {
+            setAudioNeedsUnlock(false);
+          })
+          .catch((err) => {
+            console.warn(`[VideoTile] Remote audio play blocked for ${displayName}:`, err);
+            setAudioNeedsUnlock(true);
+            const unlock = () => {
+              audioEl.play().then(() => setAudioNeedsUnlock(false)).catch(() => {});
+              window.removeEventListener("touchstart", unlock);
+              window.removeEventListener("click", unlock);
+            };
+            window.addEventListener("touchstart", unlock, { once: true });
+            window.addEventListener("click", unlock, { once: true });
+          });
+      };
+
+      tryPlayAudio();
     } else {
       audioEl.srcObject = null;
+      setAudioNeedsUnlock(false);
     }
-  }, [stream, isLocal]);
+  }, [stream, isLocal, displayName]);
 
   const initialLetter = (displayName || "V").trim().charAt(0).toUpperCase();
   const avatarHexColor = getAvatarHexColor(displayName || "Vinayak");
@@ -110,20 +147,20 @@ export function VideoTile({
         className
       )}
     >
-      {/* Video Stream Element */}
+      {/* Video Stream Element: Always stays in layout so hardware decoding stays active */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted={isLocal} // Always mute local element to avoid acoustic feedback
+        muted={true} // Video element is always muted; audio is exclusively handled by dedicated audio element
         className={cn(
           "w-full h-full object-cover",
           isLocal && "transform -scale-x-100",
-          !hasLiveVideo ? "hidden" : "block"
+          !hasLiveVideo ? "invisible absolute inset-0 pointer-events-none" : "block"
         )}
       />
 
-      {/* Dedicated Remote Audio Element (Never hidden to ensure continuous audio playback) */}
+      {/* Dedicated Remote Audio Element */}
       {!isLocal && (
         <audio
           ref={audioRef}
@@ -134,7 +171,7 @@ export function VideoTile({
 
       {/* Video Off Exact Zoom Avatar State (Burnt Orange / Distinct Square with Bold Letter) */}
       {!hasLiveVideo && (
-        <div className="flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center justify-center p-4 relative z-10">
           <div
             style={{ backgroundColor: avatarHexColor }}
             className="w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center text-5xl sm:text-6xl font-bold text-white shadow-xl select-none transition-transform hover:scale-102"
@@ -142,6 +179,21 @@ export function VideoTile({
             {initialLetter}
           </div>
         </div>
+      )}
+
+      {/* Mobile Audio Autoplay Tap-to-Unmute Prompt */}
+      {audioNeedsUnlock && !isLocal && (
+        <button
+          onClick={() => {
+            if (audioRef.current) {
+              audioRef.current.play().then(() => setAudioNeedsUnlock(false)).catch(() => {});
+            }
+          }}
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce"
+        >
+          <Volume2 className="w-3.5 h-3.5" />
+          <span>Tap to hear {displayName}</span>
+        </button>
       )}
 
       {/* Floating Reaction Animation */}

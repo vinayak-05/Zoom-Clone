@@ -284,12 +284,30 @@ export default function MeetingRoomPage() {
   // Periodic active participant sync across all devices
   useEffect(() => {
     if (!hasJoined || !codeParam) return;
-    refreshParticipants();
     const interval = setInterval(() => {
       refreshParticipants();
     }, 2500);
     return () => clearInterval(interval);
   }, [hasJoined, codeParam, refreshParticipants]);
+
+  // Global audio autoplay unlock on mobile and user gestures
+  useEffect(() => {
+    const unlockAudio = () => {
+      const audioElements = document.querySelectorAll("audio");
+      audioElements.forEach((el) => {
+        if (el.paused && el.srcObject) {
+          el.play().catch(() => {});
+        }
+      });
+    };
+
+    window.addEventListener("touchstart", unlockAudio);
+    window.addEventListener("click", unlockAudio);
+    return () => {
+      window.removeEventListener("touchstart", unlockAudio);
+      window.removeEventListener("click", unlockAudio);
+    };
+  }, []);
 
   // 5. WebSocket Hooks & Handlers
 
