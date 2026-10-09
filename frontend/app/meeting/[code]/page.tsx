@@ -46,6 +46,7 @@ import { useWebRTC } from "../../../hooks/useWebRTC";
 import { api } from "../../../lib/api";
 import { formatMeetingCode, formatTime, getInitials, getAvatarHexColor } from "../../../lib/utils";
 import { DEFAULT_USER, API_BASE_URL, getApiBaseUrl } from "../../../lib/constants";
+import { getStoredUser } from "../../../lib/auth";
 import { useToast } from "../../../components/ui/Toast";
 import type {
   MeetingValidationResponse,
@@ -64,13 +65,7 @@ export default function MeetingRoomPage() {
 
   // Active Authenticated / Default User
   const [currentUser, setCurrentUser] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("zoom_current_user");
-        if (stored) return JSON.parse(stored);
-      } catch {}
-    }
-    return DEFAULT_USER;
+    return getStoredUser();
   });
 
   // Meeting & Join States
@@ -415,13 +410,10 @@ export default function MeetingRoomPage() {
         video: !settings.isVideoOff,
       });
 
-      const activeUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("zoom_current_user") || "null") : null;
-      const hostNameMatch = Boolean(validation?.host_name && settings.displayName.toLowerCase() === validation.host_name.toLowerCase());
-      const isHostUser = hostNameMatch || Boolean(activeUser?.name && validation?.host_name && activeUser.name.toLowerCase() === validation.host_name.toLowerCase());
-
+      const activeUser = getStoredUser();
       const res = await api.joinMeeting(codeParam, {
         display_name: settings.displayName,
-        user_id: activeUser?.id || (isHostUser ? DEFAULT_USER.id : null),
+        user_id: activeUser && !activeUser.is_guest ? activeUser.id : null,
         passcode: settings.passcode,
         is_muted: settings.isMuted,
         is_video_off: settings.isVideoOff,

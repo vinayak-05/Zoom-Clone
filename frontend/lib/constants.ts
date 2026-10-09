@@ -2,6 +2,8 @@
  * Global application constants and configuration.
  */
 
+export const DEFAULT_TUNNEL_URL = "https://long-heads-flow.loca.lt";
+
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {
     // 1. Custom override from settings/localStorage
@@ -16,31 +18,27 @@ export const getApiBaseUrl = (): string => {
     const isLocalhost = host === "localhost" || host === "127.0.0.1";
     const isLocalIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
 
-    // 2. Check NEXT_PUBLIC_API_URL environment variable
-    const envApi = process.env.NEXT_PUBLIC_API_URL;
-    if (envApi) {
-      const isEnvLocalhost = envApi.includes("127.0.0.1") || envApi.includes("localhost");
-      // If deployed on remote site (Netlify), ignore localhost env setting
-      if (!isLocalhost && !isLocalIp && isEnvLocalhost) {
-        // Discard localhost URL for remote clients
-      } else {
-        return envApi;
-      }
-    }
-
-    // 3. Localhost on developer machine
+    // 2. Localhost on developer machine
     if (isLocalhost) {
       return "http://127.0.0.1:8000";
     }
 
-    // 4. Local network IP over Wi-Fi
+    // 3. Local network IP over Wi-Fi
     if (isLocalIp) {
       return `http://${host}:8000`;
     }
 
-    // 5. On public deployment (Netlify) with no valid remote backend URL:
-    // Return empty string to trigger local standalone mode without connection timeouts
-    return "";
+    // 4. Check NEXT_PUBLIC_API_URL environment variable
+    const envApi = process.env.NEXT_PUBLIC_API_URL;
+    if (envApi) {
+      const isEnvLocalhost = envApi.includes("127.0.0.1") || envApi.includes("localhost");
+      if (!isEnvLocalhost) {
+        return envApi;
+      }
+    }
+
+    // 5. Default public deployment (Netlify): connect directly to the live backend tunnel
+    return DEFAULT_TUNNEL_URL;
   }
 
   // Build time / server render
@@ -48,7 +46,7 @@ export const getApiBaseUrl = (): string => {
   if (envApi && !envApi.includes("127.0.0.1") && !envApi.includes("localhost")) {
     return envApi;
   }
-  return "";
+  return DEFAULT_TUNNEL_URL;
 };
 
 export const getWsBaseUrl = (): string => {
@@ -92,7 +90,7 @@ export const getWsBaseUrl = (): string => {
       return `ws://${host}:8000`;
     }
 
-    return `${protocol}//${host}`;
+    return DEFAULT_TUNNEL_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
   }
 
   const envWs = process.env.NEXT_PUBLIC_WS_URL;
@@ -103,7 +101,7 @@ export const getWsBaseUrl = (): string => {
   if (envApi && !envApi.includes("127.0.0.1") && !envApi.includes("localhost")) {
     return envApi.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
   }
-  return "";
+  return DEFAULT_TUNNEL_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
 };
 
 export const API_BASE_URL = typeof window !== "undefined" ? getApiBaseUrl() : "";

@@ -5,6 +5,7 @@ import { Copy, Check, Shield, Link2, Hash } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { formatMeetingCode } from "../../lib/utils";
+import { getStoredUser } from "../../lib/auth";
 import { useToast } from "../ui/Toast";
 
 interface InviteModalProps {
@@ -44,11 +45,8 @@ export function InviteModal({
   const handleCopyFullInvitation = async () => {
     let hostName = "Host";
     try {
-      const stored = localStorage.getItem("zoom_current_user");
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u?.name) hostName = u.name;
-      }
+      const u = getStoredUser();
+      if (u?.name) hostName = u.name;
     } catch {}
 
     const fullText = `${hostName} is inviting you to a scheduled Zoom meeting.\n\nTopic: ${title}\n\nJoin Zoom Meeting:\n${inviteLink}\n\nMeeting ID: ${formattedCode}${

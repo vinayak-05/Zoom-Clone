@@ -87,7 +87,18 @@ function getLocalMeetings(): Meeting[] {
       localStorage.setItem("zoom_local_meetings", JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    const list: Meeting[] = JSON.parse(raw);
+    const seen = new Set<string>();
+    return list.filter((m) => {
+      const idKey = String(m.id);
+      const codeKey = m.meeting_code ? m.meeting_code.replace(/\D/g, "") : "";
+      if (seen.has(idKey) || (codeKey && seen.has(codeKey))) {
+        return false;
+      }
+      seen.add(idKey);
+      if (codeKey) seen.add(codeKey);
+      return true;
+    });
   } catch {
     return [];
   }
@@ -97,13 +108,12 @@ function saveLocalMeeting(meeting: Meeting): void {
   if (typeof window === "undefined") return;
   try {
     const list = getLocalMeetings();
-    const idx = list.findIndex((m) => m.id === meeting.id || m.meeting_code === meeting.meeting_code);
-    if (idx >= 0) {
-      list[idx] = meeting;
-    } else {
-      list.unshift(meeting);
-    }
-    localStorage.setItem("zoom_local_meetings", JSON.stringify(list));
+    const cleanCode = meeting.meeting_code ? meeting.meeting_code.replace(/\D/g, "") : "";
+    const filtered = list.filter(
+      (m) => m.id !== meeting.id && (!cleanCode || m.meeting_code.replace(/\D/g, "") !== cleanCode)
+    );
+    filtered.unshift(meeting);
+    localStorage.setItem("zoom_local_meetings", JSON.stringify(filtered));
   } catch {
     // Ignore storage write error
   }

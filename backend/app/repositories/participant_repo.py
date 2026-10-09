@@ -22,7 +22,7 @@ class ParticipantRepository:
 
     @staticmethod
     def get_active_participants(db: Session, meeting_id: int) -> list[Participant]:
-        """Fetch all currently active participants in a meeting, automatically deduplicating multiple sessions per user."""
+        """Fetch all currently active participants in a meeting."""
         stmt = (
             select(Participant)
             .where(
@@ -32,24 +32,7 @@ class ParticipantRepository:
             )
             .order_by(Participant.joined_at.asc())
         )
-        all_active = list(db.scalars(stmt).all())
-        seen_users = set()
-        deduped = []
-        needs_commit = False
-        now = datetime.now(timezone.utc)
-        # Iterate in reverse to keep the latest session for any registered user
-        for p in reversed(all_active):
-            if p.user_id is not None:
-                if p.user_id in seen_users:
-                    # Mark older duplicate session as left
-                    p.left_at = now
-                    needs_commit = True
-                    continue
-                seen_users.add(p.user_id)
-            deduped.append(p)
-        if needs_commit:
-            db.commit()
-        return list(reversed(deduped))
+        return list(db.scalars(stmt).all())
 
     @staticmethod
     def get_all_by_meeting(db: Session, meeting_id: int) -> list[Participant]:

@@ -8,6 +8,7 @@ import { Button } from "../ui/Button";
 import { parseMeetingCode } from "../../lib/utils";
 import { api } from "../../lib/api";
 import { DEFAULT_USER } from "../../lib/constants";
+import { getStoredUser } from "../../lib/auth";
 
 interface JoinMeetingModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ export function JoinMeetingModal({
 }: JoinMeetingModalProps) {
   const router = useRouter();
   const [meetingInput, setMeetingInput] = useState(initialCode);
-  const [displayName, setDisplayName] = useState(DEFAULT_USER.name);
+  const [displayName, setDisplayName] = useState(() => getStoredUser()?.name || "Guest");
   const [passcode, setPasscode] = useState("");
   const [noAudio, setNoAudio] = useState(false);
   const [noVideo, setNoVideo] = useState(false);

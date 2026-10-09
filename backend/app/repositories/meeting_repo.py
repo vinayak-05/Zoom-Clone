@@ -51,6 +51,7 @@ class MeetingRepository:
         now = datetime.now(timezone.utc)
         stmt = (
             select(Meeting)
+            .distinct()
             .where(
                 Meeting.host_id == host_id,
                 Meeting.status.in_([MeetingStatus.SCHEDULED.value, MeetingStatus.LIVE.value]),
@@ -66,13 +67,20 @@ class MeetingRepository:
                 asc(Meeting.created_at),
             )
         )
-        return list(db.scalars(stmt).all())
+        seen = set()
+        results = []
+        for m in db.scalars(stmt).all():
+            if m.id not in seen:
+                seen.add(m.id)
+                results.append(m)
+        return results
 
     @staticmethod
     def list_recent(db: Session, host_id: int) -> list[Meeting]:
         """Recent meetings: status == ended, sorted by ended_at/started_at descending."""
         stmt = (
             select(Meeting)
+            .distinct()
             .where(
                 Meeting.host_id == host_id,
                 Meeting.status == MeetingStatus.ENDED.value,
@@ -83,13 +91,26 @@ class MeetingRepository:
                 desc(Meeting.created_at),
             )
         )
-        return list(db.scalars(stmt).all())
+        seen = set()
+        results = []
+        for m in db.scalars(stmt).all():
+            if m.id not in seen:
+                seen.add(m.id)
+                results.append(m)
+        return results
 
     @staticmethod
     def list_all(db: Session, host_id: int) -> list[Meeting]:
         stmt = (
             select(Meeting)
+            .distinct()
             .where(Meeting.host_id == host_id)
             .order_by(desc(Meeting.created_at))
         )
-        return list(db.scalars(stmt).all())
+        seen = set()
+        results = []
+        for m in db.scalars(stmt).all():
+            if m.id not in seen:
+                seen.add(m.id)
+                results.append(m)
+        return results

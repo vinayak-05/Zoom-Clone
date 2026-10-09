@@ -15,7 +15,18 @@ export function useMeetings(initialFilter: "upcoming" | "recent" | "all" = "upco
     setError(null);
     try {
       const data = await api.getMeetings(filter);
-      setMeetings(data);
+      const seen = new Set<string>();
+      const unique = data.filter((m) => {
+        const idKey = String(m.id);
+        const codeKey = m.meeting_code ? m.meeting_code.replace(/\D/g, "") : "";
+        if (seen.has(idKey) || (codeKey && seen.has(codeKey))) {
+          return false;
+        }
+        seen.add(idKey);
+        if (codeKey) seen.add(codeKey);
+        return true;
+      });
+      setMeetings(unique);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load meetings.";
       setError(msg);

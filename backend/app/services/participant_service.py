@@ -72,36 +72,36 @@ class ParticipantService:
             else:
                 actual_user_id = user_rec.id
 
-        # Determine role
+        # Determine host status based on verified host user_id
         is_host = (actual_user_id is not None and actual_user_id == meeting.host_id)
-        if not is_host and meeting.host:
-            is_host = (data.display_name.strip().lower() == meeting.host.name.lower())
-        role = ParticipantRole.HOST.value if is_host else ParticipantRole.PARTICIPANT.value
+        active_participants = db.query(Participant).filter(
+            Participant.meeting_id == meeting.id,
+            Participant.left_at.is_(None),
+            Participant.is_removed == False,
+        ).all()
 
-        # Reuse existing active session if user already joined this meeting
-        if actual_user_id is not None:
-            existing = ParticipantRepository.get_active_by_user(db, meeting.id, actual_user_id)
-            if existing:
-                existing.display_name = data.display_name.strip()
-                existing.is_muted = data.is_muted
-                existing.is_video_off = data.is_video_off
-                existing.role = role
-                db.commit()
-                db.refresh(existing)
-                ParticipantRepository.cleanup_duplicate_user_sessions(db, meeting.id, actual_user_id, existing.id)
-                return ParticipantJoinResponse(
-                    participant=ParticipantRead.model_validate(existing),
-                    meeting_id=meeting.id,
-                    meeting_code=meeting.meeting_code,
-                    title=meeting.title,
-                    is_host=is_host,
-                )
+        # If a host already exists in the room, subsequent joins from the host account join as co-host
+        existing_host = any(p.role == ParticipantRole.HOST.value for p in active_participants)
+        if is_host and existing_host:
+            role = ParticipantRole.CO_HOST.value
+        elif is_host:
+            role = ParticipantRole.HOST.value
+        else:
+            role = ParticipantRole.PARTICIPANT.value
 
-        # Create new join session row
+        # Disambiguate display name if multiple devices connect under same user/name
+        base_name = data.display_name.strip()
+        matching_count = sum(
+            1 for p in active_participants
+            if p.display_name.lower() == base_name.lower() or p.display_name.lower().startswith(f"{base_name.lower()} (")
+        )
+        assigned_name = base_name if matching_count == 0 else f"{base_name} ({matching_count + 1})"
+
+        # Create new unique join session row for this device/connection
         participant = Participant(
             meeting_id=meeting.id,
             user_id=actual_user_id,
-            display_name=data.display_name.strip(),
+            display_name=assigned_name,
             role=role,
             is_muted=data.is_muted,
             is_video_off=data.is_video_off,
@@ -114,7 +114,7 @@ class ParticipantService:
             meeting_id=meeting.id,
             meeting_code=meeting.meeting_code,
             title=meeting.title,
-            is_host=is_host,
+            is_host=(role in (ParticipantRole.HOST.value, ParticipantRole.CO_HOST.value)),
         )
 
     @classmethod

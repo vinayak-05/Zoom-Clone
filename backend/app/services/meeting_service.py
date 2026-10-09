@@ -97,23 +97,11 @@ class MeetingService:
         )
         meeting = MeetingRepository.create(db, meeting)
 
-        # Host automatically joins
-        host_participant = Participant(
-            meeting_id=meeting.id,
-            user_id=host_user.id,
-            display_name=host_user.name,
-            role=ParticipantRole.HOST.value,
-            is_muted=False,
-            is_video_off=not data.host_video_default,
-            joined_at=now,
-        )
-        host_participant = ParticipantRepository.create(db, host_participant)
-
         invite_link = cls._build_invite_link(code, meeting.passcode)
         return {
             "meeting": cls.to_read_dto(meeting, db),
             "invite_link": invite_link,
-            "host_participant_id": host_participant.id,
+            "host_participant_id": 0,
         }
 
     @classmethod
