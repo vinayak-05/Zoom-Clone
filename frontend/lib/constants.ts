@@ -2,7 +2,7 @@
  * Global application constants and configuration.
  */
 
-export const DEFAULT_TUNNEL_URL = "https://limit-binary-edgar-mailto.trycloudflare.com";
+export const DEFAULT_TUNNEL_URL = "https://basic-opened-consciousness-attractions.trycloudflare.com";
 
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {
@@ -14,7 +14,8 @@ export const getApiBaseUrl = (): string => {
           custom.includes("loca.lt") ||
           custom.includes("ngrok") ||
           ((custom.includes("127.0.0.1") || custom.includes("localhost")) &&
-            window.location.hostname.includes("netlify.app"));
+            window.location.hostname.includes("netlify.app")) ||
+          (custom.includes("trycloudflare.com") && custom !== DEFAULT_TUNNEL_URL);
         if (isStale) {
           localStorage.removeItem("zoom_custom_backend_url");
         } else {
@@ -69,7 +70,8 @@ export const getWsBaseUrl = (): string => {
           customWs.includes("loca.lt") ||
           customWs.includes("ngrok") ||
           ((customWs.includes("127.0.0.1") || customWs.includes("localhost")) &&
-            window.location.hostname.includes("netlify.app"));
+            window.location.hostname.includes("netlify.app")) ||
+          (customWs.includes("trycloudflare.com") && !customWs.includes("basic-opened-consciousness-attractions"));
         if (isStaleWs) {
           localStorage.removeItem("zoom_custom_ws_url");
         } else {
@@ -82,7 +84,8 @@ export const getWsBaseUrl = (): string => {
           customApi.includes("loca.lt") ||
           customApi.includes("ngrok") ||
           ((customApi.includes("127.0.0.1") || customApi.includes("localhost")) &&
-            window.location.hostname.includes("netlify.app"));
+            window.location.hostname.includes("netlify.app")) ||
+          (customApi.includes("trycloudflare.com") && customApi !== DEFAULT_TUNNEL_URL);
         if (isStaleApi) {
           localStorage.removeItem("zoom_custom_backend_url");
         } else {
