@@ -24,6 +24,8 @@ export function useWebRTC({
   const pendingCandidatesRef = useRef<Map<number, RTCIceCandidateInit[]>>(new Map());
   // Tracks in-progress offer creation to avoid glare
   const isMakingOfferRef = useRef<Map<number, boolean>>(new Map());
+  // Map of participantId -> persistent MediaStream instance
+  const remoteStreamsMapRef = useRef<Map<number, MediaStream>>(new Map());
   // Map of participantId -> remote MediaStream
   const [remoteStreams, setRemoteStreams] = useState<Record<number, MediaStream>>({});
 
@@ -50,68 +52,67 @@ export function useWebRTC({
         iceCandidatePoolSize: 2,
       });
 
-      // Explicitly register both audio and video transceivers with sendrecv
-      const audioTransceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
-      const videoTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
-
-      // Attach current local tracks directly to their matching transceiver senders
+      // Add local tracks if available
       if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0] || null;
-        const videoTrack = localStream.getVideoTracks()[0] || null;
-
-        if (audioTrack) {
-          audioTransceiver.sender.replaceTrack(audioTrack).catch((err) => {
-            console.warn(`[WebRTC] Error attaching audio track to ${peerId}:`, err);
-          });
-        }
-        if (videoTrack) {
-          videoTransceiver.sender.replaceTrack(videoTrack).catch((err) => {
-            console.warn(`[WebRTC] Error attaching video track to ${peerId}:`, err);
-          });
-        }
+        localStream.getTracks().forEach((track) => {
+          try {
+            pc.addTrack(track, localStream);
+          } catch (e) {
+            console.warn(`[WebRTC] Error adding local track to ${peerId}:`, e);
+          }
+        });
       }
 
-      // Handle incoming remote media tracks and accumulate into MediaStream
+      // Ensure we always have sendrecv transceivers for both audio and video
+      // even if local tracks are not yet initialized or temporarily muted
+      if (!pc.getTransceivers().some((t) => t.receiver.track.kind === "audio")) {
+        pc.addTransceiver("audio", { direction: "sendrecv" });
+      }
+      if (!pc.getTransceivers().some((t) => t.receiver.track.kind === "video")) {
+        pc.addTransceiver("video", { direction: "sendrecv" });
+      }
+
+      // Handle incoming remote media tracks and accumulate into a persistent MediaStream
       pc.ontrack = (event) => {
         console.log(
           `[WebRTC] ontrack from peer ${peerId}: kind=${event.track.kind}, id=${event.track.id}, readyState=${event.track.readyState}`
         );
 
-        const updateRemoteStream = () => {
-          setRemoteStreams((prev) => {
-            const current = prev[peerId];
-            const stream = current ? new MediaStream(current.getTracks()) : new MediaStream();
+        let stream = remoteStreamsMapRef.current.get(peerId);
+        if (!stream) {
+          stream = new MediaStream();
+          remoteStreamsMapRef.current.set(peerId, stream);
+        }
 
-            if (event.track && !stream.getTracks().some((t) => t.id === event.track.id)) {
-              stream.addTrack(event.track);
+        if (event.track && !stream.getTracks().some((t) => t.id === event.track.id)) {
+          stream.addTrack(event.track);
+        }
+        if (event.streams && event.streams[0]) {
+          event.streams[0].getTracks().forEach((t) => {
+            if (!stream!.getTracks().some((existingT) => existingT.id === t.id)) {
+              stream!.addTrack(t);
             }
-            if (event.streams && event.streams[0]) {
-              event.streams[0].getTracks().forEach((t) => {
-                if (!stream.getTracks().some((existingT) => existingT.id === t.id)) {
-                  stream.addTrack(t);
-                }
-              });
-            }
-
-            return {
-              ...prev,
-              [peerId]: stream,
-            };
           });
+        }
+
+        const notifyStreamUpdated = () => {
+          setRemoteStreams((prev) => ({
+            ...prev,
+            [peerId]: stream!,
+          }));
         };
 
-        if (event.track) {
-          updateRemoteStream();
+        notifyStreamUpdated();
 
-          event.track.onunmute = () => {
-            console.log(`[WebRTC] Track unmuted from ${peerId}: kind=${event.track.kind}`);
-            updateRemoteStream();
-          };
+        event.track.onunmute = () => {
+          console.log(`[WebRTC] Track unmuted from ${peerId}: kind=${event.track.kind}`);
+          notifyStreamUpdated();
+        };
 
-          event.track.onended = () => {
-            console.log(`[WebRTC] Track ended from ${peerId}: kind=${event.track.kind}`);
-          };
-        }
+        event.track.onended = () => {
+          console.log(`[WebRTC] Track ended from ${peerId}: kind=${event.track.kind}`);
+          notifyStreamUpdated();
+        };
       };
 
       // Send local ICE candidates to remote peer via WebSocket
@@ -325,6 +326,7 @@ export function useWebRTC({
     }
     pendingCandidatesRef.current.delete(peerId);
     isMakingOfferRef.current.delete(peerId);
+    remoteStreamsMapRef.current.delete(peerId);
     setRemoteStreams((prev) => {
       const next = { ...prev };
       delete next[peerId];
@@ -339,6 +341,7 @@ export function useWebRTC({
       peerConnectionsRef.current.clear();
       pendingCandidatesRef.current.clear();
       isMakingOfferRef.current.clear();
+      remoteStreamsMapRef.current.clear();
     };
   }, []);
 

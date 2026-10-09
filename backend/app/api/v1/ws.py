@@ -24,6 +24,13 @@ class MeetingConnectionManager:
         self.rooms: Dict[str, Dict[int, WebSocket]] = {}
         # room_code -> dict of participant_id -> list of buffered signaling messages
         self.message_buffer: Dict[str, Dict[int, List[dict]]] = {}
+        self.history: List[str] = []
+
+    def record(self, text: str) -> None:
+        import time
+        self.history.append(f"{time.strftime('%H:%M:%S')} | {text}")
+        if len(self.history) > 100:
+            self.history.pop(0)
 
     async def connect(self, raw_code: str, participant_id: int, websocket: WebSocket) -> None:
         await websocket.accept()
@@ -31,6 +38,7 @@ class MeetingConnectionManager:
         if room_code not in self.rooms:
             self.rooms[room_code] = {}
         self.rooms[room_code][participant_id] = websocket
+        self.record(f"CONNECT: pid={participant_id} in room={room_code} (total={len(self.rooms[room_code])})")
 
         # Flush any buffered WebRTC signaling messages waiting for this participant
         if room_code in self.message_buffer and participant_id in self.message_buffer[room_code]:
@@ -145,14 +153,22 @@ async def meeting_websocket_endpoint(
                 data["sender_participant_id"] = participant_id
                 if target_pid:
                     delivered = await manager.send_to_participant(room_code, int(target_pid), data)
-                    logger.info(f"[WS Signaling] {msg_type} from {participant_id} -> {target_pid} (delivered={delivered})")
+                    extra = ""
+                    if msg_type == "webrtc_ice_candidate":
+                        cand = data.get("candidate", {}) or {}
+                        cand_str = cand.get("candidate", "") if isinstance(cand, dict) else ""
+                        extra = f" [{cand_str[:45]}]" if cand_str else " [null]"
+                    manager.record(f"SIGNAL: {msg_type} from {participant_id} -> {target_pid} (delivered={delivered}){extra}")
+                    logger.info(f"[WS Signaling] {msg_type} from {participant_id} -> {target_pid} (delivered={delivered}){extra}")
                 else:
                     await manager.broadcast(room_code, data, exclude_participant_id=participant_id)
+                    manager.record(f"SIGNAL: {msg_type} broadcast from {participant_id}")
                     logger.info(f"[WS Signaling] {msg_type} broadcast from {participant_id}")
 
             # 2. Participant ready for signaling handshake
             elif msg_type == "participant_ready":
                 data["participant_id"] = participant_id
+                manager.record(f"READY: pid={participant_id} in {room_code}")
                 logger.info(f"[WS Presence] participant_ready from {participant_id} in room {room_code}")
                 await manager.broadcast(room_code, data, exclude_participant_id=participant_id)
 
@@ -222,5 +238,7 @@ async def ws_debug_endpoint():
     return {
         "rooms": {room: list(conns.keys()) for room, conns in manager.rooms.items()},
         "buffered": {room: list(buf.keys()) for room, buf in manager.message_buffer.items()},
+        "history": manager.history[-40:],
     }
+
 

@@ -38,9 +38,8 @@ export function VideoTile({
   isPinned = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [hasLiveVideoTrack, setHasLiveVideoTrack] = useState<boolean>(false);
-  const [audioNeedsUnlock, setAudioNeedsUnlock] = useState<boolean>(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState<boolean>(false);
 
   // If incoming video stopped by user preference, treat remote videos as video-off
   const isVideoSuppressed = !isLocal && isIncomingVideoStopped;
@@ -56,11 +55,7 @@ export function VideoTile({
       const vTracks = stream.getVideoTracks();
       const live =
         vTracks.length > 0 &&
-        vTracks.some((t) => {
-          if (t.readyState !== "live" || !t.enabled) return false;
-          // Local tracks are never muted; remote tracks unmute when first RTP packets arrive
-          return isLocal || !t.muted;
-        });
+        vTracks.some((t) => t.readyState === "live" && t.enabled);
       setHasLiveVideoTrack(live);
     };
 
@@ -89,7 +84,7 @@ export function VideoTile({
 
   const hasLiveVideo = Boolean(!isVideoSuppressed && !isVideoOff && hasLiveVideoTrack);
 
-  // Bind and play video stream
+  // Bind and play video and audio streams
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
@@ -98,86 +93,59 @@ export function VideoTile({
       if (videoEl.srcObject !== stream) {
         videoEl.srcObject = stream;
       }
-      videoEl.play().catch((err) => {
-        console.warn(`[VideoTile] Video play error for ${displayName}:`, err);
-      });
+      videoEl
+        .play()
+        .then(() => {
+          setAutoplayBlocked(false);
+        })
+        .catch((err) => {
+          console.warn(`[VideoTile] Play blocked for ${displayName}:`, err);
+          if (!isLocal) {
+            setAutoplayBlocked(true);
+          }
+        });
     } else {
       videoEl.srcObject = null;
+      setAutoplayBlocked(false);
     }
-  }, [stream, displayName]);
+  }, [stream, displayName, isLocal]);
 
-  // Dedicated audio playback for remote participants with autoplay unlock support
-  useEffect(() => {
-    const audioEl = audioRef.current;
-    if (!audioEl || isLocal) return;
-
-    if (stream && stream.getAudioTracks().length > 0) {
-      if (audioEl.srcObject !== stream) {
-        audioEl.srcObject = stream;
-      }
-
-      const tryPlayAudio = () => {
-        audioEl
-          .play()
-          .then(() => {
-            setAudioNeedsUnlock(false);
-          })
-          .catch((err) => {
-            console.warn(`[VideoTile] Remote audio play blocked for ${displayName}:`, err);
-            setAudioNeedsUnlock(true);
-            const unlock = () => {
-              audioEl.play().then(() => setAudioNeedsUnlock(false)).catch(() => {});
-              window.removeEventListener("touchstart", unlock);
-              window.removeEventListener("click", unlock);
-            };
-            window.addEventListener("touchstart", unlock, { once: true });
-            window.addEventListener("click", unlock, { once: true });
-          });
-      };
-
-      tryPlayAudio();
-    } else {
-      audioEl.srcObject = null;
-      setAudioNeedsUnlock(false);
+  const handleTileClick = () => {
+    if (!isLocal && videoRef.current && videoRef.current.paused) {
+      videoRef.current
+        .play()
+        .then(() => setAutoplayBlocked(false))
+        .catch(() => {});
     }
-  }, [stream, isLocal, displayName]);
+  };
 
   const initialLetter = (displayName || "V").trim().charAt(0).toUpperCase();
   const avatarHexColor = getAvatarHexColor(displayName || "Vinayak");
 
   return (
     <div
+      onClick={handleTileClick}
       className={cn(
-        "relative rounded-xl overflow-hidden bg-[#18181D] flex items-center justify-center select-none group transition-all duration-150 w-full h-full",
+        "relative rounded-xl overflow-hidden bg-[#18181D] flex items-center justify-center select-none group transition-all duration-150 w-full h-full cursor-pointer",
         isSpeaking && "ring-2 ring-green-500",
         className
       )}
     >
-      {/* Video Stream Element: Always stays in layout so hardware decoding stays active */}
+      {/* Video Element: Plays both audio & video for remote participants (muted only for local user) */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted={true} // Video element is always muted; audio is exclusively handled by dedicated audio element
+        muted={isLocal}
         className={cn(
           "w-full h-full object-cover",
-          isLocal && "transform -scale-x-100",
-          !hasLiveVideo ? "invisible absolute inset-0 pointer-events-none" : "block"
+          isLocal && "transform -scale-x-100"
         )}
       />
 
-      {/* Dedicated Remote Audio Element */}
-      {!isLocal && (
-        <audio
-          ref={audioRef}
-          autoPlay
-          playsInline
-        />
-      )}
-
-      {/* Video Off Exact Zoom Avatar State (Burnt Orange / Distinct Square with Bold Letter) */}
+      {/* Video Off Exact Zoom Avatar State (Rendered as overlay so audio continues playing through the video element) */}
       {!hasLiveVideo && (
-        <div className="flex flex-col items-center justify-center p-4 relative z-10">
+        <div className="absolute inset-0 bg-[#18181D] flex flex-col items-center justify-center p-4 z-10 pointer-events-none">
           <div
             style={{ backgroundColor: avatarHexColor }}
             className="w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center text-5xl sm:text-6xl font-bold text-white shadow-xl select-none transition-transform hover:scale-102"
@@ -187,18 +155,22 @@ export function VideoTile({
         </div>
       )}
 
-      {/* Mobile Audio Autoplay Tap-to-Unmute Prompt */}
-      {audioNeedsUnlock && !isLocal && (
+      {/* Mobile Audio/Video Autoplay Tap-to-Unmute Prompt */}
+      {autoplayBlocked && !isLocal && (
         <button
-          onClick={() => {
-            if (audioRef.current) {
-              audioRef.current.play().then(() => setAudioNeedsUnlock(false)).catch(() => {});
+          onClick={(e) => {
+            e.stopPropagation();
+            if (videoRef.current) {
+              videoRef.current
+                .play()
+                .then(() => setAutoplayBlocked(false))
+                .catch(() => {});
             }
           }}
           className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce"
         >
           <Volume2 className="w-3.5 h-3.5" />
-          <span>Tap to hear {displayName}</span>
+          <span>Tap to unmute {displayName}</span>
         </button>
       )}
 

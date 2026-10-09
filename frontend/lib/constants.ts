@@ -172,26 +172,19 @@ export const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
-  { urls: "stun:global.stun.twilio.com:3478" },
-  // OpenRelay Public TURN Relay Servers (Metered.ca)
+  { urls: "stun:openrelay.metered.ca:80" },
+  { urls: "stun:openrelay.metered.ca:443" },
+  // OpenRelay Public TURN Relay Servers (Metered.ca Open Relay Project)
   // Essential for mobile carrier networks (CGNAT/Symmetric NAT) and cross-network peer traversal
   {
     urls: [
       "turn:openrelay.metered.ca:80",
       "turn:openrelay.metered.ca:443",
       "turn:openrelay.metered.ca:443?transport=tcp",
-      "turn:openrelay.metered.ca:3478",
     ],
-    username: "openrelay",
-    credential: "openrelay",
-  },
-  {
-    urls: [
-      "turns:openrelay.metered.ca:443?transport=tcp",
-      "turns:openrelay.metered.ca:5349",
-    ],
-    username: "openrelay",
-    credential: "openrelay",
+    username: "openrelayproject",
+    credential: "openrelayproject",
   },
 ];
+
 

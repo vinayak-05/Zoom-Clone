@@ -293,9 +293,9 @@ export default function MeetingRoomPage() {
   // Global audio autoplay unlock on mobile and user gestures
   useEffect(() => {
     const unlockAudio = () => {
-      const audioElements = document.querySelectorAll("audio");
-      audioElements.forEach((el) => {
-        if (el.paused && el.srcObject) {
+      const mediaElements = document.querySelectorAll<HTMLMediaElement>("video, audio");
+      mediaElements.forEach((el) => {
+        if (el.paused && el.srcObject && !el.muted) {
           el.play().catch(() => {});
         }
       });
