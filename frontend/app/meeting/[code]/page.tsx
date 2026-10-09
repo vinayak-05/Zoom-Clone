@@ -268,18 +268,11 @@ export default function MeetingRoomPage() {
       const list = await api.getParticipants(codeParam);
       if (Array.isArray(list)) {
         setParticipants(list);
-        if (currentParticipantId) {
-          list.forEach((p) => {
-            if (p.id !== currentParticipantId) {
-              webrtcHandlersRef.current?.initiateCall(p.id);
-            }
-          });
-        }
       }
     } catch (err) {
       console.warn("Error refreshing participants:", err);
     }
-  }, [codeParam, currentParticipantId]);
+  }, [codeParam]);
 
   // Periodic active participant sync across all devices
   useEffect(() => {
@@ -393,11 +386,13 @@ export default function MeetingRoomPage() {
     participantId: currentParticipantId,
     onParticipantJoined: (pid) => {
       refreshParticipants();
-      webrtcHandlersRef.current?.initiateCall(pid);
+      if (currentParticipantId && currentParticipantId < pid) {
+        webrtcHandlersRef.current?.initiateCall(pid);
+      }
       showToast("A new participant joined.", "info");
     },
     onParticipantReady: (pid) => {
-      if (currentParticipantId && pid !== currentParticipantId) {
+      if (currentParticipantId && currentParticipantId < pid) {
         webrtcHandlersRef.current?.initiateCall(pid);
       }
     },

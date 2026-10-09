@@ -179,8 +179,16 @@ export function useWebRTC({
 
         if (!isIceRestart) {
           // Avoid duplicate offers if connection is already established or active negotiation in progress
-          if (pc.connectionState === "connected" || pc.connectionState === "connecting") {
-            console.log(`[WebRTC] Peer ${peerId} already in ${pc.connectionState} state, skipping offer.`);
+          if (
+            pc.connectionState === "connected" ||
+            pc.connectionState === "connecting" ||
+            pc.iceConnectionState === "checking" ||
+            pc.iceConnectionState === "connected" ||
+            pc.iceConnectionState === "completed"
+          ) {
+            console.log(
+              `[WebRTC] Peer ${peerId} in connectionState=${pc.connectionState}, iceConnectionState=${pc.iceConnectionState}, skipping offer.`
+            );
             return;
           }
           if (isMakingOfferRef.current.get(peerId)) {
